@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ticketflow-mysql
+    environment:
+      MYSQL_DATABASE: ticketflow
+      MYSQL_ROOT_PASSWORD: root
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - ticketflow_mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: ticketflow-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  ticketflow_mysql_data:
