@@ -23,6 +23,7 @@ class PingControllerTest {
         mockMvc.perform(get("/api/v1/ping"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
-                .andExpect(jsonPath("$.message").value("TicketFlow v0.1 is running"));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("TicketFlow v0.1 is running"));
     }
 }
