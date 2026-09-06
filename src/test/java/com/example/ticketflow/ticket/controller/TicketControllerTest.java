@@ -13,6 +13,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -34,6 +35,10 @@ class TicketControllerTest {
                 INSERT INTO tf_tenant (id, code, name, status)
                 VALUES (1, 'test-tenant', 'Test Tenant', 'ACTIVE')
                 """);
+        jdbcTemplate.update("""
+        INSERT INTO tf_tenant (id, code, name, status)
+        VALUES (2, 'test-tenant-2', 'Test Tenant 2', 'ACTIVE')
+        """);
     }
 
     @Test
@@ -127,5 +132,64 @@ class TicketControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TICKET_NO_EXISTS"));
+    }
+
+    @Test
+    void shouldOnlyReturnTicketsForRequestedTenant() throws Exception {
+        String tenantOneTicket = """
+            {
+              "tenantId": 1,
+              "ticketNo": "TENANT-1-001",
+              "title": "Tenant one ticket"
+            }
+            """;
+
+        String tenantTwoTicket = """
+            {
+              "tenantId": 2,
+              "ticketNo": "TENANT-2-001",
+              "title": "Tenant two ticket"
+            }
+            """;
+
+        mockMvc.perform(
+                        post("/api/v1/tickets")
+                                .contentType(APPLICATION_JSON)
+                                .content(tenantOneTicket)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        post("/api/v1/tickets")
+                                .contentType(APPLICATION_JSON)
+                                .content(tenantTwoTicket)
+                )
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(
+                        get("/api/v1/tickets")
+                                .param("tenantId", "1")
+                                .param("page", "1")
+                                .param("size", "10")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].tenantId").value(1))
+                .andExpect(jsonPath("$.data.records[0].ticketNo")
+                        .value("TENANT-1-001"));
+    }
+
+    @Test
+    void shouldRejectUnknownTenantWhenListingTickets() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/tickets")
+                                .param("tenantId", "999")
+                                .param("page", "1")
+                                .param("size", "10")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TENANT_NOT_FOUND"));
     }
 }

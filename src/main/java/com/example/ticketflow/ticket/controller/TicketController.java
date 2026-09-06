@@ -5,6 +5,9 @@ import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
 import com.example.ticketflow.ticket.service.TicketService;
 import jakarta.validation.Valid;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,5 +34,16 @@ public class TicketController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(ticket));
+    }
+
+    @GetMapping
+    public ApiResponse<Page<Ticket>> pageTickets(
+            @RequestParam Long tenantId,
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size
+    ) {
+        return ApiResponse.success(
+                ticketService.pageTickets(tenantId, page, size)
+        );
     }
 }

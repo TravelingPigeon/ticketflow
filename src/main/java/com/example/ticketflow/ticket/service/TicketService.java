@@ -1,6 +1,7 @@
 package com.example.ticketflow.ticket.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
@@ -64,5 +65,43 @@ public class TicketService {
         ticketMapper.insert(ticket);
 
         return ticketMapper.selectById(ticket.getId());
+    }
+
+    public Page<Ticket> pageTickets(
+            Long tenantId,
+            long current,
+            long size
+    ) {
+        Tenant tenant = tenantMapper.selectById(tenantId);
+
+        if (tenant == null) {
+            throw new BusinessException(
+                    "TENANT_NOT_FOUND",
+                    "租户不存在"
+            );
+        }
+
+        if (current < 1) {
+            throw new BusinessException(
+                    "INVALID_PAGE",
+                    "页码必须大于等于1"
+            );
+        }
+
+        if (size < 1 || size > 100) {
+            throw new BusinessException(
+                    "INVALID_PAGE_SIZE",
+                    "每页数量必须在1到100之间"
+            );
+        }
+
+        Page<Ticket> page = new Page<>(current, size);
+
+        LambdaQueryWrapper<Ticket> wrapper =
+                new LambdaQueryWrapper<Ticket>()
+                        .eq(Ticket::getTenantId, tenantId)
+                        .orderByDesc(Ticket::getCreatedAt);
+
+        return ticketMapper.selectPage(page, wrapper);
     }
 }
