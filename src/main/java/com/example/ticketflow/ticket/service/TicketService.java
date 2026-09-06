@@ -9,6 +9,7 @@ import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
+import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
 import org.springframework.stereotype.Service;
 
@@ -103,5 +104,47 @@ public class TicketService {
                         .orderByDesc(Ticket::getCreatedAt);
 
         return ticketMapper.selectPage(page, wrapper);
+    }
+
+    public Ticket updateStatus(
+            Long ticketId,
+            UpdateTicketStatusRequest request
+    ) {
+        Ticket ticket = ticketMapper.selectOne(
+                new LambdaQueryWrapper<Ticket>()
+                        .eq(Ticket::getId, ticketId)
+                        .eq(Ticket::getTenantId, request.tenantId())
+        );
+
+        if (ticket == null) {
+            throw new BusinessException(
+                    "TICKET_NOT_FOUND",
+                    "工单不存在"
+            );
+        }
+
+        if (!isValidTransition(ticket.getStatus(), request.status())) {
+            throw new BusinessException(
+                    "INVALID_STATUS_TRANSITION",
+                    "当前状态不允许变更为目标状态"
+            );
+        }
+
+        ticket.setStatus(request.status());
+        ticketMapper.updateById(ticket);
+
+        return ticketMapper.selectById(ticketId);
+    }
+
+    private boolean isValidTransition(
+            TicketStatus currentStatus,
+            TicketStatus targetStatus
+    ) {
+        return switch (currentStatus) {
+            case OPEN -> targetStatus == TicketStatus.PROCESSING;
+            case PROCESSING -> targetStatus == TicketStatus.RESOLVED;
+            case RESOLVED -> targetStatus == TicketStatus.CLOSED;
+            case CLOSED -> false;
+        };
     }
 }

@@ -4,8 +4,11 @@ import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
 import com.example.ticketflow.ticket.service.TicketService;
+import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.HttpStatus;
@@ -44,6 +47,16 @@ public class TicketController {
     ) {
         return ApiResponse.success(
                 ticketService.pageTickets(tenantId, page, size)
+        );
+    }
+
+    @PatchMapping("/{ticketId}/status")
+    public ApiResponse<Ticket> updateStatus(
+            @PathVariable Long ticketId,
+            @Valid @RequestBody UpdateTicketStatusRequest request
+    ) {
+        return ApiResponse.success(
+                ticketService.updateStatus(ticketId, request)
         );
     }
 }

@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -191,5 +192,101 @@ class TicketControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TENANT_NOT_FOUND"));
+    }
+
+    @Test
+    void shouldUpdateTicketStatus() throws Exception {
+        long ticketId = createTestTicket("STATUS-001", 1);
+
+        String updateBody = """
+            {
+              "tenantId": 1,
+              "status": "PROCESSING"
+            }
+            """;
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .contentType(APPLICATION_JSON)
+                                .content(updateBody)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("PROCESSING"));
+    }
+
+    @Test
+    void shouldRejectInvalidStatusTransition() throws Exception {
+        long ticketId = createTestTicket("STATUS-002", 1);
+
+        String updateBody = """
+            {
+              "tenantId": 1,
+              "status": "RESOLVED"
+            }
+            """;
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .contentType(APPLICATION_JSON)
+                                .content(updateBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code")
+                        .value("INVALID_STATUS_TRANSITION"));
+    }
+
+    @Test
+    void shouldNotUpdateTicketFromAnotherTenant() throws Exception {
+        long ticketId = createTestTicket("STATUS-003", 1);
+
+        String updateBody = """
+            {
+              "tenantId": 2,
+              "status": "PROCESSING"
+            }
+            """;
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .contentType(APPLICATION_JSON)
+                                .content(updateBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("TICKET_NOT_FOUND"));
+    }
+
+    private long createTestTicket(
+            String ticketNo,
+            int tenantId
+    ) throws Exception {
+        String requestBody = """
+            {
+              "tenantId": %d,
+              "ticketNo": "%s",
+              "title": "Status test"
+            }
+            """.formatted(tenantId, ticketNo);
+
+        mockMvc.perform(
+                        post("/api/v1/tickets")
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isCreated());
+
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT id
+                FROM tf_ticket
+                WHERE tenant_id = ?
+                  AND ticket_no = ?
+                """,
+                Long.class,
+                tenantId,
+                ticketNo
+        );
     }
 }
