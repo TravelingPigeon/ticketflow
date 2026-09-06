@@ -12,6 +12,6 @@ public class PingController {
 
     @GetMapping("/ping")
     public Map<String, String> ping() {
-        return Map.of("message", " TicketFlow v0.1 is running");
+        return Map.of("message", "TicketFlow v0.1 is running");
     }
 }
