@@ -18,6 +18,8 @@ public class SecurityConfig {
                                 "/api/v1/ping",
                                 "/api/v1/tenants",
                                 "/api/v1/tenants/**",
+                                "/api/v1/tickets",
+                                "/api/v1/tickets/**",
                                 "/actuator/health"
                         ).permitAll()
                         .anyRequest().authenticated()
