@@ -53,10 +53,13 @@ public class TicketController {
 
     @GetMapping
     public ApiResponse<Page<Ticket>> pageTickets(
-            @RequestParam Long tenantId,
+            HttpSession session,
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size
     ) {
+        Long tenantId =
+                currentTenantService.requireTenantId(session);
+
         return ApiResponse.success(
                 ticketService.pageTickets(tenantId, page, size)
         );

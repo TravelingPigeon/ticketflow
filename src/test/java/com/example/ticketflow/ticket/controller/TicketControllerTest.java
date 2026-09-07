@@ -171,7 +171,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .param("tenantId", "1")
+                                .session(tenantSession(1))
                                 .param("page", "1")
                                 .param("size", "10")
                 )
@@ -187,7 +187,7 @@ class TicketControllerTest {
     void shouldRejectUnknownTenantWhenListingTickets() throws Exception {
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .param("tenantId", "999")
+                                .session(tenantSession(999))
                                 .param("page", "1")
                                 .param("size", "10")
                 )
