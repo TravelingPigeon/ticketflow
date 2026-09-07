@@ -7,9 +7,6 @@ import jakarta.validation.constraints.Size;
 
 public record CreateTicketRequest(
 
-        @NotNull(message = "租户不能为空")
-        Long tenantId,
-
         @NotBlank(message = "工单编号不能为空")
         @Size(max = 32, message = "工单编号不能超过32个字符")
         String ticketNo,

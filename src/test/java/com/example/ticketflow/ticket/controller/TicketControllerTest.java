@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -46,7 +47,6 @@ class TicketControllerTest {
     void shouldCreateTicketWithHighPriority() throws Exception {
         String requestBody = """
                 {
-                  "tenantId": 1,
                   "ticketNo": "TF-TEST-001",
                   "title": "Login problem",
                   "description": "User cannot log in",
@@ -56,6 +56,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -71,7 +72,6 @@ class TicketControllerTest {
     void shouldUseMediumPriorityByDefault() throws Exception {
         String requestBody = """
                 {
-                  "tenantId": 1,
                   "ticketNo": "TF-TEST-002",
                   "title": "Password reset",
                   "description": "User forgot password"
@@ -80,6 +80,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -92,7 +93,6 @@ class TicketControllerTest {
     void shouldRejectUnknownTenant() throws Exception {
         String requestBody = """
                 {
-                  "tenantId": 999,
                   "ticketNo": "TF-TEST-003",
                   "title": "Unknown tenant test"
                 }
@@ -100,6 +100,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(999))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -112,7 +113,6 @@ class TicketControllerTest {
     void shouldRejectDuplicateTicketNumber() throws Exception {
         String requestBody = """
                 {
-                  "tenantId": 1,
                   "ticketNo": "TF-TEST-004",
                   "title": "Duplicate ticket test"
                 }
@@ -120,6 +120,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -127,6 +128,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -139,7 +141,6 @@ class TicketControllerTest {
     void shouldOnlyReturnTicketsForRequestedTenant() throws Exception {
         String tenantOneTicket = """
             {
-              "tenantId": 1,
               "ticketNo": "TENANT-1-001",
               "title": "Tenant one ticket"
             }
@@ -147,7 +148,6 @@ class TicketControllerTest {
 
         String tenantTwoTicket = """
             {
-              "tenantId": 2,
               "ticketNo": "TENANT-2-001",
               "title": "Tenant two ticket"
             }
@@ -155,6 +155,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(tenantOneTicket)
                 )
@@ -162,6 +163,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(2))
                                 .contentType(APPLICATION_JSON)
                                 .content(tenantTwoTicket)
                 )
@@ -264,14 +266,14 @@ class TicketControllerTest {
     ) throws Exception {
         String requestBody = """
             {
-              "tenantId": %d,
               "ticketNo": "%s",
               "title": "Status test"
             }
-            """.formatted(tenantId, ticketNo);
+            """.formatted(ticketNo);
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .session(tenantSession(tenantId))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -288,5 +290,11 @@ class TicketControllerTest {
                 tenantId,
                 ticketNo
         );
+    }
+
+    private MockHttpSession tenantSession(long tenantId) {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("CURRENT_TENANT_ID", tenantId);
+        return session;
     }
 }

@@ -1,10 +1,12 @@
 package com.example.ticketflow.ticket.controller;
 
+import com.example.ticketflow.auth.security.CurrentTenantService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
 import com.example.ticketflow.ticket.service.TicketService;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,16 +25,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final CurrentTenantService currentTenantService;
 
-    public TicketController(TicketService ticketService) {
+    public TicketController(
+            TicketService ticketService,
+            CurrentTenantService currentTenantService
+    ) {
         this.ticketService = ticketService;
+        this.currentTenantService = currentTenantService;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Ticket>> createTicket(
-            @Valid @RequestBody CreateTicketRequest request
+            @Valid @RequestBody CreateTicketRequest request,
+            HttpSession session
     ) {
-        Ticket ticket = ticketService.createTicket(request);
+        Long tenantId =
+                currentTenantService.requireTenantId(session);
+
+        Ticket ticket =
+                ticketService.createTicket(tenantId, request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -69,4 +81,5 @@ public class TicketController {
                 ticketService.findTicket(ticketId, tenantId)
         );
     }
+
 }

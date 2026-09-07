@@ -27,8 +27,8 @@ public class TicketService {
         this.tenantMapper = tenantMapper;
     }
 
-    public Ticket createTicket(CreateTicketRequest request) {
-        Tenant tenant = tenantMapper.selectById(request.tenantId());
+    public Ticket createTicket(Long tenantId, CreateTicketRequest request) {
+        Tenant tenant = tenantMapper.selectById(tenantId);
 
         if (tenant == null) {
             throw new BusinessException(
@@ -39,7 +39,7 @@ public class TicketService {
 
         Ticket existingTicket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Ticket>()
-                        .eq(Ticket::getTenantId, request.tenantId())
+                        .eq(Ticket::getTenantId, tenantId)
                         .eq(Ticket::getTicketNo, request.ticketNo())
         );
 
@@ -51,7 +51,7 @@ public class TicketService {
         }
 
         Ticket ticket = new Ticket();
-        ticket.setTenantId(request.tenantId());
+        ticket.setTenantId(tenantId);
         ticket.setTicketNo(request.ticketNo().trim());
         ticket.setTitle(request.title().trim());
         ticket.setDescription(request.description());
