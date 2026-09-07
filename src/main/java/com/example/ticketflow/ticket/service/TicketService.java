@@ -108,12 +108,13 @@ public class TicketService {
 
     public Ticket updateStatus(
             Long ticketId,
+            Long tenantId,
             UpdateTicketStatusRequest request
-    ) {
+    ){
         Ticket ticket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getId, ticketId)
-                        .eq(Ticket::getTenantId, request.tenantId())
+                        .eq(Ticket::getTenantId, tenantId)
         );
 
         if (ticket == null) {

@@ -197,18 +197,48 @@ class TicketControllerTest {
     }
 
     @Test
+    void shouldReturnTicketDetailForCurrentTenant() throws Exception {
+        long ticketId = createTestTicket("DETAIL-001", 1);
+
+        mockMvc.perform(
+                        get("/api/v1/tickets/" + ticketId)
+                                .session(tenantSession(1))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value((int) ticketId))
+                .andExpect(jsonPath("$.data.tenantId").value(1))
+                .andExpect(jsonPath("$.data.ticketNo")
+                        .value("DETAIL-001"));
+    }
+
+    @Test
+    void shouldNotReturnTicketForAnotherTenant() throws Exception {
+        long ticketId = createTestTicket("DETAIL-002", 1);
+
+        mockMvc.perform(
+                        get("/api/v1/tickets/" + ticketId)
+                                .session(tenantSession(2))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code")
+                        .value("TICKET_NOT_FOUND"));
+    }
+
+    @Test
     void shouldUpdateTicketStatus() throws Exception {
         long ticketId = createTestTicket("STATUS-001", 1);
 
         String updateBody = """
             {
-              "tenantId": 1,
               "status": "PROCESSING"
             }
             """;
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
+                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )
@@ -223,13 +253,13 @@ class TicketControllerTest {
 
         String updateBody = """
             {
-              "tenantId": 1,
               "status": "RESOLVED"
             }
             """;
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
+                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )
@@ -245,13 +275,13 @@ class TicketControllerTest {
 
         String updateBody = """
             {
-              "tenantId": 2,
               "status": "PROCESSING"
             }
             """;
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
+                                .session(tenantSession(2))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )

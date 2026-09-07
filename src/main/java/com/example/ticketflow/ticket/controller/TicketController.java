@@ -68,18 +68,29 @@ public class TicketController {
     @PatchMapping("/{ticketId}/status")
     public ApiResponse<Ticket> updateStatus(
             @PathVariable Long ticketId,
-            @Valid @RequestBody UpdateTicketStatusRequest request
+            @Valid @RequestBody UpdateTicketStatusRequest request,
+            HttpSession session
     ) {
+        Long tenantId =
+                currentTenantService.requireTenantId(session);
+
         return ApiResponse.success(
-                ticketService.updateStatus(ticketId, request)
+                ticketService.updateStatus(
+                        ticketId,
+                        tenantId,
+                        request
+                )
         );
     }
 
     @GetMapping("/{ticketId}")
     public ApiResponse<Ticket> findTicket(
             @PathVariable Long ticketId,
-            @RequestParam Long tenantId
+            HttpSession session
     ) {
+        Long tenantId =
+                currentTenantService.requireTenantId(session);
+
         return ApiResponse.success(
                 ticketService.findTicket(ticketId, tenantId)
         );
