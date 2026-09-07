@@ -18,12 +18,7 @@ public class SecurityConfig {
                         // 租户接口暂时开放，便于本阶段验证数据库读写；接入登录后再改为登录用户访问。
                         .requestMatchers(
                                 "/api/v1/ping",
-                                "/api/v1/tenants",
-                                "/api/v1/tenants/**",
-                                "/api/v1/tickets",
-                                "/api/v1/tickets/**",
                                 "/api/v1/users",
-                                "/api/v1/users/**",
                                 "/api/v1/auth/login",
                                 "/actuator/health"
                         ).permitAll()

@@ -1,5 +1,6 @@
 package com.example.ticketflow.auth.controller;
 
+import com.example.ticketflow.auth.security.CurrentTenantService;
 import com.example.ticketflow.auth.service.AuthService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.user.domain.UserAccount;
@@ -26,9 +27,15 @@ public class AuthController {
 
     private final AuthService authService;
     private final SecurityContextRepository securityContextRepository;
+    private final CurrentTenantService currentTenantService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(
+            AuthService authService,
+            CurrentTenantService currentTenantService
+    ) {
         this.authService = authService;
+        this.currentTenantService = currentTenantService;
+
         this.securityContextRepository =
                 new HttpSessionSecurityContextRepository();
     }
@@ -81,7 +88,7 @@ public class AuthController {
             HttpSession session
     ) {
         Long tenantId =
-                (Long) session.getAttribute("CURRENT_TENANT_ID");
+                currentTenantService.requireTenantId(session);
 
         return ApiResponse.success(
                 Map.of(
