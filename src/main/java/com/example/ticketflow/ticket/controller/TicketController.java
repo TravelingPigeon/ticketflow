@@ -59,4 +59,14 @@ public class TicketController {
                 ticketService.updateStatus(ticketId, request)
         );
     }
+
+    @GetMapping("/{ticketId}")
+    public ApiResponse<Ticket> findTicket(
+            @PathVariable Long ticketId,
+            @RequestParam Long tenantId
+    ) {
+        return ApiResponse.success(
+                ticketService.findTicket(ticketId, tenantId)
+        );
+    }
 }

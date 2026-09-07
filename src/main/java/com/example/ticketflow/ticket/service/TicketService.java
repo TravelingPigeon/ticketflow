@@ -147,4 +147,21 @@ public class TicketService {
             case CLOSED -> false;
         };
     }
+
+    public Ticket findTicket(Long ticketId, Long tenantId) {
+        Ticket ticket = ticketMapper.selectOne(
+                new LambdaQueryWrapper<Ticket>()
+                        .eq(Ticket::getId, ticketId)
+                        .eq(Ticket::getTenantId, tenantId)
+        );
+
+        if (ticket == null) {
+            throw new BusinessException(
+                    "TICKET_NOT_FOUND",
+                    "工单不存在"
+            );
+        }
+
+        return ticket;
+    }
 }
