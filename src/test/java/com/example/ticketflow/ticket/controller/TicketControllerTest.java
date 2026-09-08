@@ -441,4 +441,124 @@ class TicketControllerTest {
         session.setAttribute("CURRENT_TENANT_ID", tenantId);
         return session;
     }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldFilterTicketsByStatus() throws Exception {
+        long processingTicket =
+                createTestTicket("FILTER-STATUS-001", 1);
+
+        createTestTicket("FILTER-STATUS-002", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + processingTicket + "/status")
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                    {
+                                      "status": "PROCESSING"
+                                    }
+                                    """)
+                )
+                .andExpect(status().isOk());
+
+        mockMvc.perform(
+                        get("/api/v1/tickets")
+                                .session(tenantSession(1))
+                                .param("status", "PROCESSING")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].ticketNo")
+                        .value("FILTER-STATUS-001"));
+    }
+
+    @Test
+    void shouldFilterTicketsByPriority() throws Exception {
+        createTestTicketWithPriority(
+                "FILTER-PRIORITY-001",
+                1,
+                "HIGH"
+        );
+
+        createTestTicket(
+                "FILTER-PRIORITY-002",
+                1
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/tickets")
+                                .session(tenantSession(1))
+                                .param("priority", "HIGH")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].ticketNo")
+                        .value("FILTER-PRIORITY-001"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldFilterTicketsByAssignee() throws Exception {
+        long assignedTicket =
+                createTestTicket("FILTER-ASSIGNEE-001", 1);
+
+        createTestTicket("FILTER-ASSIGNEE-002", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + assignedTicket + "/assignee")
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                    {
+                                      "assigneeId": 1
+                                    }
+                                    """)
+                )
+                .andExpect(status().isOk());
+
+        mockMvc.perform(
+                        get("/api/v1/tickets")
+                                .session(tenantSession(1))
+                                .param("assigneeId", "1")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].ticketNo")
+                        .value("FILTER-ASSIGNEE-001"));
+    }
+
+    private long createTestTicketWithPriority(
+            String ticketNo,
+            int tenantId,
+            String priority
+    ) throws Exception {
+        String requestBody = """
+            {
+              "ticketNo": "%s",
+              "title": "Priority filter test",
+              "priority": "%s"
+            }
+            """.formatted(ticketNo, priority);
+
+        mockMvc.perform(
+                        post("/api/v1/tickets")
+                                .session(tenantSession(tenantId))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isCreated());
+
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT id
+                FROM tf_ticket
+                WHERE tenant_id = ?
+                  AND ticket_no = ?
+                """,
+                Long.class,
+                tenantId,
+                ticketNo
+        );
+    }
 }

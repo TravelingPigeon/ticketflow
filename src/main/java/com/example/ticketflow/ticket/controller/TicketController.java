@@ -3,8 +3,11 @@ package com.example.ticketflow.ticket.controller;
 import com.example.ticketflow.auth.security.CurrentTenantService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
+import com.example.ticketflow.ticket.domain.enums.TicketPriority;
+import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.AssignTicketRequest;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
+import com.example.ticketflow.ticket.dto.TicketQuery;
 import com.example.ticketflow.ticket.service.TicketService;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import jakarta.servlet.http.HttpSession;
@@ -57,13 +60,28 @@ public class TicketController {
     public ApiResponse<Page<Ticket>> pageTickets(
             HttpSession session,
             @RequestParam(defaultValue = "1") long page,
-            @RequestParam(defaultValue = "10") long size
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) TicketPriority priority,
+            @RequestParam(required = false) Long assigneeId
     ) {
         Long tenantId =
                 currentTenantService.requireTenantId(session);
 
+        TicketQuery query =
+                new TicketQuery(
+                        status,
+                        priority,
+                        assigneeId
+                );
+
         return ApiResponse.success(
-                ticketService.pageTickets(tenantId, page, size)
+                ticketService.pageTickets(
+                        tenantId,
+                        page,
+                        size,
+                        query
+                )
         );
     }
 

@@ -10,6 +10,7 @@ import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.AssignTicketRequest;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
+import com.example.ticketflow.ticket.dto.TicketQuery;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
 import com.example.ticketflow.user.domain.UserAccount;
@@ -81,6 +82,20 @@ public class TicketService {
             long current,
             long size
     ) {
+        return pageTickets(
+                tenantId,
+                current,
+                size,
+                new TicketQuery(null, null, null)
+        );
+    }
+
+    public Page<Ticket> pageTickets(
+            Long tenantId,
+            long current,
+            long size,
+            TicketQuery query
+    ) {
         Tenant tenant = tenantMapper.selectById(tenantId);
 
         if (tenant == null) {
@@ -104,11 +119,30 @@ public class TicketService {
             );
         }
 
+        if (query == null) {
+            query = new TicketQuery(null, null, null);
+        }
+
         Page<Ticket> page = new Page<>(current, size);
 
         LambdaQueryWrapper<Ticket> wrapper =
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getTenantId, tenantId)
+                        .eq(
+                                query.status() != null,
+                                Ticket::getStatus,
+                                query.status()
+                        )
+                        .eq(
+                                query.priority() != null,
+                                Ticket::getPriority,
+                                query.priority()
+                        )
+                        .eq(
+                                query.assigneeId() != null,
+                                Ticket::getAssigneeId,
+                                query.assigneeId()
+                        )
                         .orderByDesc(Ticket::getCreatedAt);
 
         return ticketMapper.selectPage(page, wrapper);
