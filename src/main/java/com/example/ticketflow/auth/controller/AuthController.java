@@ -98,4 +98,20 @@ public class AuthController {
                 )
         );
     }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(
+            HttpServletRequest httpRequest
+    ) {
+        SecurityContextHolder.clearContext();
+
+        HttpSession session =
+                httpRequest.getSession(false);
+
+        if (session != null) {
+            session.invalidate();
+        }
+
+        return ApiResponse.<Void>success(null);
+    }
 }
