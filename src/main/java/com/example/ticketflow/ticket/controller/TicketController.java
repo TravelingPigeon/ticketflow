@@ -9,6 +9,7 @@ import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -65,6 +66,7 @@ public class TicketController {
         );
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'AGENT')")
     @PatchMapping("/{ticketId}/status")
     public ApiResponse<Ticket> updateStatus(
             @PathVariable Long ticketId,

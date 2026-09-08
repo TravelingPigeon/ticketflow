@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -227,6 +228,7 @@ class TicketControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "alice", roles = "AGENT")
     void shouldUpdateTicketStatus() throws Exception {
         long ticketId = createTestTicket("STATUS-001", 1);
 
@@ -248,6 +250,7 @@ class TicketControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "alice", roles = "AGENT")
     void shouldRejectInvalidStatusTransition() throws Exception {
         long ticketId = createTestTicket("STATUS-002", 1);
 
@@ -270,6 +273,7 @@ class TicketControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "alice", roles = "AGENT")
     void shouldNotUpdateTicketFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("STATUS-003", 1);
 
