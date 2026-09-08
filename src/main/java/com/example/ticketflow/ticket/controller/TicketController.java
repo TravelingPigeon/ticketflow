@@ -5,25 +5,15 @@ import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
-import com.example.ticketflow.ticket.dto.AssignTicketRequest;
-import com.example.ticketflow.ticket.dto.CreateTicketRequest;
-import com.example.ticketflow.ticket.dto.TicketQuery;
+import com.example.ticketflow.ticket.dto.*;
 import com.example.ticketflow.ticket.service.TicketService;
-import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -54,6 +44,25 @@ public class TicketController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(ticket));
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'AGENT')")
+    @PutMapping("/{ticketId}")
+    public ApiResponse<Ticket> updateTicket(
+            @PathVariable Long ticketId,
+            @Valid @RequestBody UpdateTicketRequest request,
+            HttpSession session
+    ) {
+        Long tenantId =
+                currentTenantService.requireTenantId(session);
+
+        return ApiResponse.success(
+                ticketService.updateTicket(
+                        ticketId,
+                        tenantId,
+                        request
+                )
+        );
     }
 
     @GetMapping

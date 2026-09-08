@@ -12,11 +12,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -560,5 +558,84 @@ class TicketControllerTest {
                 tenantId,
                 ticketNo
         );
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldUpdateTicketDetails() throws Exception {
+        long ticketId = createTestTicket("EDIT-001", 1);
+
+        String requestBody = """
+            {
+              "title": "Updated title",
+              "description": "Updated description",
+              "priority": "HIGH"
+            }
+            """;
+
+        mockMvc.perform(
+                        put("/api/v1/tickets/" + ticketId)
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.title")
+                        .value("Updated title"))
+                .andExpect(jsonPath("$.data.description")
+                        .value("Updated description"))
+                .andExpect(jsonPath("$.data.priority")
+                        .value("HIGH"))
+                .andExpect(jsonPath("$.data.status")
+                        .value("OPEN"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldNotEditTicketFromAnotherTenant() throws Exception {
+        long ticketId = createTestTicket("EDIT-002", 1);
+
+        String requestBody = """
+            {
+              "title": "Illegal update",
+              "description": "Should not be updated",
+              "priority": "LOW"
+            }
+            """;
+
+        mockMvc.perform(
+                        put("/api/v1/tickets/" + ticketId)
+                                .session(tenantSession(2))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("TICKET_NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockUser(username = "requester-one", roles = "REQUESTER")
+    void shouldRejectRequesterUpdatingTicket() throws Exception {
+        long ticketId = createTestTicket("EDIT-003", 1);
+
+        String requestBody = """
+            {
+              "title": "Requester update",
+              "description": "Should be rejected",
+              "priority": "MEDIUM"
+            }
+            """;
+
+        mockMvc.perform(
+                        put("/api/v1/tickets/" + ticketId)
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code")
+                        .value("FORBIDDEN"));
     }
 }

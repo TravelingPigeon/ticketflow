@@ -8,10 +8,7 @@ import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
-import com.example.ticketflow.ticket.dto.AssignTicketRequest;
-import com.example.ticketflow.ticket.dto.CreateTicketRequest;
-import com.example.ticketflow.ticket.dto.TicketQuery;
-import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
+import com.example.ticketflow.ticket.dto.*;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.domain.enums.UserRole;
@@ -75,6 +72,33 @@ public class TicketService {
         ticketMapper.insert(ticket);
 
         return ticketMapper.selectById(ticket.getId());
+    }
+
+    public Ticket updateTicket(
+            Long ticketId,
+            Long tenantId,
+            UpdateTicketRequest request
+    ) {
+        Ticket ticket = ticketMapper.selectOne(
+                new LambdaQueryWrapper<Ticket>()
+                        .eq(Ticket::getId, ticketId)
+                        .eq(Ticket::getTenantId, tenantId)
+        );
+
+        if (ticket == null) {
+            throw new BusinessException(
+                    "TICKET_NOT_FOUND",
+                    "工单不存在"
+            );
+        }
+
+        ticket.setTitle(request.title().trim());
+        ticket.setDescription(request.description());
+        ticket.setPriority(request.priority());
+
+        ticketMapper.updateById(ticket);
+
+        return ticketMapper.selectById(ticketId);
     }
 
     public Page<Ticket> pageTickets(
