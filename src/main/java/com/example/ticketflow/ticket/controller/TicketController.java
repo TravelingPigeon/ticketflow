@@ -3,6 +3,7 @@ package com.example.ticketflow.ticket.controller;
 import com.example.ticketflow.auth.security.CurrentTenantService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
+import com.example.ticketflow.ticket.dto.AssignTicketRequest;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
 import com.example.ticketflow.ticket.service.TicketService;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
@@ -78,6 +79,25 @@ public class TicketController {
 
         return ApiResponse.success(
                 ticketService.updateStatus(
+                        ticketId,
+                        tenantId,
+                        request
+                )
+        );
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'AGENT')")
+    @PatchMapping("/{ticketId}/assignee")
+    public ApiResponse<Ticket> assignTicket(
+            @PathVariable Long ticketId,
+            @Valid @RequestBody AssignTicketRequest request,
+            HttpSession session
+    ) {
+        Long tenantId =
+                currentTenantService.requireTenantId(session);
+
+        return ApiResponse.success(
+                ticketService.assignTicket(
                         ticketId,
                         tenantId,
                         request

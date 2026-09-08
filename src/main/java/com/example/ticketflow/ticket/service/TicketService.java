@@ -8,9 +8,14 @@ import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
+import com.example.ticketflow.ticket.dto.AssignTicketRequest;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
+import com.example.ticketflow.user.domain.UserAccount;
+import com.example.ticketflow.user.domain.enums.UserRole;
+import com.example.ticketflow.user.domain.enums.UserStatus;
+import com.example.ticketflow.user.mapper.UserAccountMapper;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,13 +23,16 @@ public class TicketService {
 
     private final TicketMapper ticketMapper;
     private final TenantMapper tenantMapper;
+    private final UserAccountMapper userAccountMapper;
 
     public TicketService(
             TicketMapper ticketMapper,
-            TenantMapper tenantMapper
+            TenantMapper tenantMapper,
+            UserAccountMapper userAccountMapper
     ) {
         this.ticketMapper = ticketMapper;
         this.tenantMapper = tenantMapper;
+        this.userAccountMapper = userAccountMapper;
     }
 
     public Ticket createTicket(Long tenantId, CreateTicketRequest request) {
@@ -164,5 +172,50 @@ public class TicketService {
         }
 
         return ticket;
+    }
+
+    public Ticket assignTicket(
+            Long ticketId,
+            Long tenantId,
+            AssignTicketRequest request
+    ) {
+        Ticket ticket = ticketMapper.selectOne(
+                new LambdaQueryWrapper<Ticket>()
+                        .eq(Ticket::getId, ticketId)
+                        .eq(Ticket::getTenantId, tenantId)
+        );
+
+        if (ticket == null) {
+            throw new BusinessException(
+                    "TICKET_NOT_FOUND",
+                    "工单不存在"
+            );
+        }
+
+        UserAccount assignee = userAccountMapper.selectOne(
+                new LambdaQueryWrapper<UserAccount>()
+                        .eq(UserAccount::getId, request.assigneeId())
+                        .eq(UserAccount::getTenantId, tenantId)
+                        .eq(UserAccount::getStatus, UserStatus.ACTIVE)
+        );
+
+        if (assignee == null) {
+            throw new BusinessException(
+                    "ASSIGNEE_NOT_FOUND",
+                    "处理人不存在或不属于当前租户"
+            );
+        }
+
+        if (assignee.getRole() == UserRole.REQUESTER) {
+            throw new BusinessException(
+                    "INVALID_ASSIGNEE_ROLE",
+                    "不能将工单分配给普通用户"
+            );
+        }
+
+        ticket.setAssigneeId(assignee.getId());
+        ticketMapper.updateById(ticket);
+
+        return ticketMapper.selectById(ticketId);
     }
 }

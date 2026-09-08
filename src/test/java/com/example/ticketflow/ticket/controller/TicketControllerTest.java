@@ -32,6 +32,7 @@ class TicketControllerTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate.update("DELETE FROM tf_ticket");
+        jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
         jdbcTemplate.update("""
@@ -41,6 +42,27 @@ class TicketControllerTest {
         jdbcTemplate.update("""
         INSERT INTO tf_tenant (id, code, name, status)
         VALUES (2, 'test-tenant-2', 'Test Tenant 2', 'ACTIVE')
+        """);
+
+        jdbcTemplate.update("""
+        INSERT INTO tf_user
+            (id, tenant_id, username, password_hash, display_name, role, status)
+        VALUES
+            (1, 1, 'agent-one', 'test-hash', 'Agent One', 'AGENT', 'ACTIVE')
+        """);
+
+        jdbcTemplate.update("""
+        INSERT INTO tf_user
+            (id, tenant_id, username, password_hash, display_name, role, status)
+        VALUES
+            (2, 2, 'agent-two', 'test-hash', 'Agent Two', 'AGENT', 'ACTIVE')
+        """);
+
+        jdbcTemplate.update("""
+        INSERT INTO tf_user
+            (id, tenant_id, username, password_hash, display_name, role, status)
+        VALUES
+            (3, 1, 'requester-one', 'test-hash', 'Requester One', 'REQUESTER', 'ACTIVE')
         """);
     }
 
@@ -292,6 +314,94 @@ class TicketControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldAssignTicketToAgentInSameTenant() throws Exception {
+        long ticketId = createTestTicket("ASSIGN-001", 1);
+
+        String requestBody = """
+            {
+              "assigneeId": 1
+            }
+            """;
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.assigneeId").value(1));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldRejectAssigneeFromAnotherTenant() throws Exception {
+        long ticketId = createTestTicket("ASSIGN-002", 1);
+
+        String requestBody = """
+            {
+              "assigneeId": 2
+            }
+            """;
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("ASSIGNEE_NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldRejectRequesterAsAssignee() throws Exception {
+        long ticketId = createTestTicket("ASSIGN-003", 1);
+
+        String requestBody = """
+            {
+              "assigneeId": 3
+            }
+            """;
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("INVALID_ASSIGNEE_ROLE"));
+    }
+
+    @Test
+    @WithMockUser(username = "requester-one", roles = "REQUESTER")
+    void shouldRejectRequesterAssigningTicket() throws Exception {
+        long ticketId = createTestTicket("ASSIGN-004", 1);
+
+        String requestBody = """
+            {
+              "assigneeId": 1
+            }
+            """;
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code")
+                        .value("FORBIDDEN"));
     }
 
     private long createTestTicket(
