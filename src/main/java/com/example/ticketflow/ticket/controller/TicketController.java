@@ -2,7 +2,6 @@ package com.example.ticketflow.ticket.controller;
 
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.auth.security.CurrentActorService;
-import com.example.ticketflow.auth.security.CurrentTenantService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
@@ -23,16 +22,13 @@ import org.springframework.http.ResponseEntity;
 public class TicketController {
 
     private final TicketService ticketService;
-    private final CurrentTenantService currentTenantService;
     private final CurrentActorService currentActorService;
 
     public TicketController(
             TicketService ticketService,
-            CurrentTenantService currentTenantService,
             CurrentActorService currentActorService
     ) {
         this.ticketService = ticketService;
-        this.currentTenantService = currentTenantService;
         this.currentActorService = currentActorService;
     }
 
@@ -58,17 +54,14 @@ public class TicketController {
     public ApiResponse<Ticket> updateTicket(
             @PathVariable Long ticketId,
             @Valid @RequestBody UpdateTicketRequest request,
-            HttpSession session
+            HttpSession session,
+            Authentication authentication
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         return ApiResponse.success(
-                ticketService.updateTicket(
-                        ticketId,
-                        tenantId,
-                        request
-                )
+                ticketService.updateTicket(actor, ticketId, request)
         );
     }
 
@@ -107,36 +100,30 @@ public class TicketController {
     public ApiResponse<Ticket> updateStatus(
             @PathVariable Long ticketId,
             @Valid @RequestBody UpdateTicketStatusRequest request,
-            HttpSession session
+            HttpSession session,
+            Authentication authentication
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         return ApiResponse.success(
-                ticketService.updateStatus(
-                        ticketId,
-                        tenantId,
-                        request
-                )
+                ticketService.updateStatus(actor, ticketId, request)
         );
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'AGENT')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{ticketId}/assignee")
     public ApiResponse<Ticket> assignTicket(
             @PathVariable Long ticketId,
             @Valid @RequestBody AssignTicketRequest request,
-            HttpSession session
+            HttpSession session,
+            Authentication authentication
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         return ApiResponse.success(
-                ticketService.assignTicket(
-                        ticketId,
-                        tenantId,
-                        request
-                )
+                ticketService.assignTicket(actor, ticketId, request)
         );
     }
 

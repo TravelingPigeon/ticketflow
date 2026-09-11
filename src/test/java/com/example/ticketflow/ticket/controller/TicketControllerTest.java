@@ -70,6 +70,20 @@ class TicketControllerTest {
         VALUES
             (3, 1, 'requester-one', 'test-hash', 'Requester One', 'REQUESTER', 'ACTIVE')
         """);
+
+        jdbcTemplate.update("""
+        INSERT INTO tf_user
+            (id, tenant_id, username, password_hash, display_name, role, status)
+        VALUES
+            (4, 1, 'admin-one', 'test-hash', 'Admin One', 'ADMIN', 'ACTIVE')
+        """);
+
+        jdbcTemplate.update("""
+        INSERT INTO tf_user
+            (id, tenant_id, username, password_hash, display_name, role, status)
+        VALUES
+            (5, 1, 'agent-beta', 'test-hash', 'Agent Beta', 'AGENT', 'ACTIVE')
+        """);
     }
 
     @Test
@@ -265,7 +279,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "alice", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldUpdateTicketStatus() throws Exception {
         long ticketId = createTestTicket("STATUS-001", 1);
 
@@ -277,6 +291,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
@@ -287,7 +302,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "alice", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectInvalidStatusTransition() throws Exception {
         long ticketId = createTestTicket("STATUS-002", 1);
 
@@ -299,6 +314,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
@@ -310,7 +326,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "alice", roles = "AGENT")
+    @WithMockUser(username = "agent-two", roles = "AGENT")
     void shouldNotUpdateTicketFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("STATUS-003", 1);
 
@@ -322,6 +338,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
+                                .principal(authentication("agent-two", "AGENT"))
                                 .session(tenantSession(2))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
@@ -332,7 +349,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldAssignTicketToAgentInSameTenant() throws Exception {
         long ticketId = createTestTicket("ASSIGN-001", 1);
 
@@ -344,6 +361,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -354,7 +372,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectAssigneeFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("ASSIGN-002", 1);
 
@@ -366,6 +384,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -376,7 +395,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectRequesterAsAssignee() throws Exception {
         long ticketId = createTestTicket("ASSIGN-003", 1);
 
@@ -388,6 +407,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -472,8 +492,16 @@ class TicketControllerTest {
         return session;
     }
 
+    private void assignTicketDirectly(long ticketId, long assigneeId) {
+        jdbcTemplate.update(
+                "UPDATE tf_ticket SET assignee_id = ? WHERE id = ?",
+                assigneeId,
+                ticketId
+        );
+    }
+
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldFilterTicketsByStatus() throws Exception {
         long processingTicket =
                 createTestTicket("FILTER-STATUS-001", 1);
@@ -482,6 +510,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + processingTicket + "/status")
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
@@ -494,7 +523,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .param("status", "PROCESSING")
                 )
@@ -530,7 +559,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldFilterTicketsByAssignee() throws Exception {
         long assignedTicket =
                 createTestTicket("FILTER-ASSIGNEE-001", 1);
@@ -539,6 +568,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + assignedTicket + "/assignee")
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
@@ -551,7 +581,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .param("assigneeId", "1")
                 )
@@ -597,7 +627,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldUpdateTicketDetails() throws Exception {
         long ticketId = createTestTicket("EDIT-001", 1);
 
@@ -611,6 +641,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/tickets/" + ticketId)
+                                .principal(authentication("admin-one", "ADMIN"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -628,7 +659,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
+    @WithMockUser(username = "agent-two", roles = "AGENT")
     void shouldNotEditTicketFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("EDIT-002", 1);
 
@@ -642,6 +673,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/tickets/" + ticketId)
+                                .principal(authentication("agent-two", "AGENT"))
                                 .session(tenantSession(2))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -811,5 +843,88 @@ class TicketControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldAllowAgentUpdatingOwnAssignedTicket() throws Exception {
+        long ticketId = createTestTicket("WRITE-001", 1);
+        assignTicketDirectly(ticketId, 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .principal(authentication("agent-one", "AGENT"))
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "status": "PROCESSING"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PROCESSING"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldRejectAgentUpdatingUnassignedTicket() throws Exception {
+        long ticketId = createTestTicket("WRITE-002", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .principal(authentication("agent-one", "AGENT"))
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "status": "PROCESSING"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldRejectAgentUpdatingTicketAssignedToAnotherAgent() throws Exception {
+        long ticketId = createTestTicket("WRITE-003", 1);
+        assignTicketDirectly(ticketId, 5);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .principal(authentication("agent-one", "AGENT"))
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "status": "PROCESSING"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldRejectAgentAssigningTicket() throws Exception {
+        long ticketId = createTestTicket("WRITE-004", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .principal(authentication("agent-one", "AGENT"))
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "assigneeId": 1
+                                        }
+                                        """)
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 }

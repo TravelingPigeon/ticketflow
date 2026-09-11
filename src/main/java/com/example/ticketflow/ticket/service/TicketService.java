@@ -15,6 +15,7 @@ import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.domain.enums.UserRole;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -82,22 +83,13 @@ public class TicketService {
     }
 
     public Ticket updateTicket(
+            CurrentActor actor,
             Long ticketId,
-            Long tenantId,
             UpdateTicketRequest request
     ) {
-        Ticket ticket = ticketMapper.selectOne(
-                new LambdaQueryWrapper<Ticket>()
-                        .eq(Ticket::getId, ticketId)
-                        .eq(Ticket::getTenantId, tenantId)
-        );
+        Ticket ticket = findTenantTicket(actor, ticketId);
 
-        if (ticket == null) {
-            throw new BusinessException(
-                    "TICKET_NOT_FOUND",
-                    "工单不存在"
-            );
-        }
+        requireAgentOwnsTicket(ticket, actor);
 
         ticket.setTitle(request.title().trim());
         ticket.setDescription(request.description());
@@ -187,22 +179,13 @@ public class TicketService {
     }
 
     public Ticket updateStatus(
+            CurrentActor actor,
             Long ticketId,
-            Long tenantId,
             UpdateTicketStatusRequest request
-    ){
-        Ticket ticket = ticketMapper.selectOne(
-                new LambdaQueryWrapper<Ticket>()
-                        .eq(Ticket::getId, ticketId)
-                        .eq(Ticket::getTenantId, tenantId)
-        );
+    ) {
+        Ticket ticket = findTenantTicket(actor, ticketId);
 
-        if (ticket == null) {
-            throw new BusinessException(
-                    "TICKET_NOT_FOUND",
-                    "工单不存在"
-            );
-        }
+        requireAgentOwnsTicket(ticket, actor);
 
         if (!isValidTransition(ticket.getStatus(), request.status())) {
             throw new BusinessException(
@@ -254,15 +237,14 @@ public class TicketService {
         return ticket;
     }
 
-    public Ticket assignTicket(
-            Long ticketId,
-            Long tenantId,
-            AssignTicketRequest request
+    private Ticket findTenantTicket(
+            CurrentActor actor,
+            Long ticketId
     ) {
         Ticket ticket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getId, ticketId)
-                        .eq(Ticket::getTenantId, tenantId)
+                        .eq(Ticket::getTenantId, actor.tenantId())
         );
 
         if (ticket == null) {
@@ -272,10 +254,35 @@ public class TicketService {
             );
         }
 
+        return ticket;
+    }
+
+    private void requireAgentOwnsTicket(
+            Ticket ticket,
+            CurrentActor actor
+    ) {
+        if (!actor.isAgent()) {
+            return;
+        }
+
+        if (!actor.userId().equals(ticket.getAssigneeId())) {
+            throw new AccessDeniedException(
+                    "工单未分配给你，无法处理"
+            );
+        }
+    }
+
+    public Ticket assignTicket(
+            CurrentActor actor,
+            Long ticketId,
+            AssignTicketRequest request
+    ) {
+        Ticket ticket = findTenantTicket(actor, ticketId);
+
         UserAccount assignee = userAccountMapper.selectOne(
                 new LambdaQueryWrapper<UserAccount>()
                         .eq(UserAccount::getId, request.assigneeId())
-                        .eq(UserAccount::getTenantId, tenantId)
+                        .eq(UserAccount::getTenantId, actor.tenantId())
                         .eq(UserAccount::getStatus, UserStatus.ACTIVE)
         );
 

@@ -11,4 +11,8 @@ public record CurrentActor(
     public boolean isRequester() {
         return role == UserRole.REQUESTER;
     }
+
+    public boolean isAgent() {
+        return role == UserRole.AGENT;
+    }
 }
