@@ -75,14 +75,15 @@ public class TicketController {
     @GetMapping
     public ApiResponse<Page<Ticket>> pageTickets(
             HttpSession session,
+            Authentication authentication,
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketPriority priority,
             @RequestParam(required = false) Long assigneeId
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         TicketQuery query =
                 new TicketQuery(
@@ -93,7 +94,7 @@ public class TicketController {
 
         return ApiResponse.success(
                 ticketService.pageTickets(
-                        tenantId,
+                        actor,
                         page,
                         size,
                         query
@@ -142,13 +143,14 @@ public class TicketController {
     @GetMapping("/{ticketId}")
     public ApiResponse<Ticket> findTicket(
             @PathVariable Long ticketId,
-            HttpSession session
+            HttpSession session,
+            Authentication authentication
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         return ApiResponse.success(
-                ticketService.findTicket(ticketId, tenantId)
+                ticketService.findTicket(actor, ticketId)
         );
     }
 

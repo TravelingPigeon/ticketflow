@@ -8,4 +8,7 @@ public record CurrentActor(
         String username,
         UserRole role
 ) {
+    public boolean isRequester() {
+        return role == UserRole.REQUESTER;
+    }
 }

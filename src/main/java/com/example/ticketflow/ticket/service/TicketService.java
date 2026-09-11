@@ -64,8 +64,8 @@ public class TicketService {
 
         Ticket ticket = new Ticket();
         ticket.setTenantId(tenantId);
-        ticket.setTicketNo(request.ticketNo().trim());
         ticket.setCreatedBy(actor.userId());
+        ticket.setTicketNo(request.ticketNo().trim());
         ticket.setTitle(request.title().trim());
         ticket.setDescription(request.description());
         ticket.setStatus(TicketStatus.OPEN);
@@ -109,12 +109,12 @@ public class TicketService {
     }
 
     public Page<Ticket> pageTickets(
-            Long tenantId,
+            CurrentActor actor,
             long current,
             long size
     ) {
         return pageTickets(
-                tenantId,
+                actor,
                 current,
                 size,
                 new TicketQuery(null, null, null)
@@ -122,11 +122,13 @@ public class TicketService {
     }
 
     public Page<Ticket> pageTickets(
-            Long tenantId,
+            CurrentActor actor,
             long current,
             long size,
             TicketQuery query
     ) {
+        Long tenantId = actor.tenantId();
+
         Tenant tenant = tenantMapper.selectById(tenantId);
 
         if (tenant == null) {
@@ -159,6 +161,11 @@ public class TicketService {
         LambdaQueryWrapper<Ticket> wrapper =
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getTenantId, tenantId)
+                        .eq(
+                                actor.isRequester(),
+                                Ticket::getCreatedBy,
+                                actor.userId()
+                        )
                         .eq(
                                 query.status() != null,
                                 Ticket::getStatus,
@@ -222,11 +229,19 @@ public class TicketService {
         };
     }
 
-    public Ticket findTicket(Long ticketId, Long tenantId) {
+    public Ticket findTicket(
+            CurrentActor actor,
+            Long ticketId
+    ) {
         Ticket ticket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getId, ticketId)
-                        .eq(Ticket::getTenantId, tenantId)
+                        .eq(Ticket::getTenantId, actor.tenantId())
+                        .eq(
+                                actor.isRequester(),
+                                Ticket::getCreatedBy,
+                                actor.userId()
+                        )
         );
 
         if (ticket == null) {

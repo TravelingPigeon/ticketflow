@@ -206,6 +206,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .param("page", "1")
                                 .param("size", "10")
@@ -237,6 +238,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/" + ticketId)
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                 )
                 .andExpect(status().isOk())
@@ -253,6 +255,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/" + ticketId)
+                                .principal(authentication("agent-two", "AGENT"))
                                 .session(tenantSession(2))
                 )
                 .andExpect(status().isBadRequest())
@@ -420,6 +423,20 @@ class TicketControllerTest {
             String ticketNo,
             int tenantId
     ) throws Exception {
+        return createTestTicket(
+                ticketNo,
+                tenantId,
+                actorNameFor(tenantId),
+                "AGENT"
+        );
+    }
+
+    private long createTestTicket(
+            String ticketNo,
+            int tenantId,
+            String username,
+            String role
+    ) throws Exception {
         String requestBody = """
             {
               "ticketNo": "%s",
@@ -429,7 +446,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication(actorNameFor(tenantId), "AGENT"))
+                                .principal(authentication(username, role))
                                 .session(tenantSession(tenantId))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -477,6 +494,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .param("status", "PROCESSING")
                 )
@@ -501,6 +519,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .param("priority", "HIGH")
                 )
@@ -532,6 +551,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .param("assigneeId", "1")
                 )
@@ -715,5 +735,81 @@ class TicketControllerTest {
                 )
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    void shouldListAllTenantTicketsForAgent() throws Exception {
+        createTestTicket("SCOPE-AGENT-001", 1, "agent-one", "AGENT");
+        createTestTicket("SCOPE-AGENT-002", 1, "requester-one", "REQUESTER");
+
+        mockMvc.perform(
+                        get("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
+                                .session(tenantSession(1))
+                                .param("page", "1")
+                                .param("size", "10")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(2));
+    }
+
+    @Test
+    void shouldOnlyListOwnTicketsForRequester() throws Exception {
+        createTestTicket("SCOPE-REQ-001", 1, "agent-one", "AGENT");
+
+        long ownTicketId = createTestTicket(
+                "SCOPE-REQ-002",
+                1,
+                "requester-one",
+                "REQUESTER"
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/tickets")
+                                .principal(authentication("requester-one", "REQUESTER"))
+                                .session(tenantSession(1))
+                                .param("page", "1")
+                                .param("size", "10")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.records[0].id")
+                        .value((int) ownTicketId))
+                .andExpect(jsonPath("$.data.records[0].ticketNo")
+                        .value("SCOPE-REQ-002"));
+    }
+
+    @Test
+    void shouldAllowRequesterReadingOwnTicket() throws Exception {
+        long ticketId = createTestTicket(
+                "SCOPE-DETAIL-001",
+                1,
+                "requester-one",
+                "REQUESTER"
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/tickets/" + ticketId)
+                                .principal(authentication("requester-one", "REQUESTER"))
+                                .session(tenantSession(1))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value((int) ticketId));
+    }
+
+    @Test
+    void shouldNotExposeOtherTicketToRequester() throws Exception {
+        long ticketId =
+                createTestTicket("SCOPE-DETAIL-002", 1, "agent-one", "AGENT");
+
+        mockMvc.perform(
+                        get("/api/v1/tickets/" + ticketId)
+                                .principal(authentication("requester-one", "REQUESTER"))
+                                .session(tenantSession(1))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
     }
 }
