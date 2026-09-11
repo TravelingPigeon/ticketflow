@@ -368,7 +368,30 @@ class TicketControllerTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.assigneeId").value(1));
+                .andExpect(jsonPath("$.data.assigneeId").value(1))
+                .andExpect(jsonPath("$.data.status").value("PROCESSING"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
+    void shouldKeepStatusWhenAssigningNonOpenTicket() throws Exception {
+        long ticketId = createTestTicket("ASSIGN-005", 1);
+        setTicketStatusDirectly(ticketId, "RESOLVED");
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/assignee")
+                                .principal(authentication("admin-one", "ADMIN"))
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "assigneeId": 1
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.assigneeId").value(1))
+                .andExpect(jsonPath("$.data.status").value("RESOLVED"));
     }
 
     @Test
@@ -496,6 +519,14 @@ class TicketControllerTest {
         jdbcTemplate.update(
                 "UPDATE tf_ticket SET assignee_id = ? WHERE id = ?",
                 assigneeId,
+                ticketId
+        );
+    }
+
+    private void setTicketStatusDirectly(long ticketId, String status) {
+        jdbcTemplate.update(
+                "UPDATE tf_ticket SET status = ? WHERE id = ?",
+                status,
                 ticketId
         );
     }

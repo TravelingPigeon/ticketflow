@@ -301,6 +301,11 @@ public class TicketService {
         }
 
         ticket.setAssigneeId(assignee.getId());
+
+        if (ticket.getStatus() == TicketStatus.OPEN) {
+            ticket.setStatus(TicketStatus.PROCESSING);
+        }
+
         ticketMapper.updateById(ticket);
 
         return ticketMapper.selectById(ticketId);
