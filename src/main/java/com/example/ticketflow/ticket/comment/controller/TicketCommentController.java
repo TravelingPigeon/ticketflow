@@ -1,6 +1,7 @@
 package com.example.ticketflow.ticket.comment.controller;
 
-import com.example.ticketflow.auth.security.CurrentTenantService;
+import com.example.ticketflow.auth.security.CurrentActor;
+import com.example.ticketflow.auth.security.CurrentActorService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.comment.domain.TicketComment;
 import com.example.ticketflow.ticket.comment.dto.CreateCommentRequest;
@@ -17,14 +18,14 @@ import java.util.List;
 public class TicketCommentController {
 
     private final TicketCommentService ticketCommentService;
-    private final CurrentTenantService currentTenantService;
+    private final CurrentActorService currentActorService;
 
     public TicketCommentController(
             TicketCommentService ticketCommentService,
-            CurrentTenantService currentTenantService
+            CurrentActorService currentActorService
     ) {
         this.ticketCommentService = ticketCommentService;
-        this.currentTenantService = currentTenantService;
+        this.currentActorService = currentActorService;
     }
 
     @PostMapping("/{ticketId}/comments")
@@ -34,14 +35,13 @@ public class TicketCommentController {
             HttpSession session,
             Authentication authentication
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         TicketComment comment =
                 ticketCommentService.createComment(
-                        tenantId,
+                        actor,
                         ticketId,
-                        authentication.getName(),
                         request
                 );
 
@@ -51,12 +51,14 @@ public class TicketCommentController {
     @GetMapping("/{ticketId}/comments")
     public ApiResponse<List<TicketComment>> listComments(
             @PathVariable Long ticketId,
-            HttpSession session
+            HttpSession session,
+            Authentication authentication
     ) {
-        Long tenantId = currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         List<TicketComment> comments =
-                ticketCommentService.listComments(tenantId, ticketId);
+                ticketCommentService.listComments(actor, ticketId);
 
         return ApiResponse.success(comments);
     }

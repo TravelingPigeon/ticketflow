@@ -73,23 +73,23 @@ class TicketCommentControllerTest {
 
         jdbcTemplate.update("""
                 INSERT INTO tf_ticket
-                    (id, tenant_id, ticket_no, title, status, priority)
+                    (id, tenant_id, ticket_no, title, status, priority, created_by)
                 VALUES
-                    (1, 1, 'COMMENT-001', 'Comment ticket', 'OPEN', 'MEDIUM')
+                    (1, 1, 'COMMENT-001', 'Comment ticket', 'OPEN', 'MEDIUM', 1)
                 """);
 
         jdbcTemplate.update("""
                 INSERT INTO tf_ticket
-                    (id, tenant_id, ticket_no, title, status, priority)
+                    (id, tenant_id, ticket_no, title, status, priority, created_by)
                 VALUES
-                    (2, 2, 'COMMENT-002', 'Other tenant ticket', 'OPEN', 'MEDIUM')
+                    (2, 2, 'COMMENT-002', 'Other tenant ticket', 'OPEN', 'MEDIUM', 2)
                 """);
 
         jdbcTemplate.update("""
                 INSERT INTO tf_ticket
-                    (id, tenant_id, ticket_no, title, status, priority)
+                    (id, tenant_id, ticket_no, title, status, priority, created_by)
                 VALUES
-                    (3, 1, 'COMMENT-003', 'Second ticket of tenant one', 'OPEN', 'MEDIUM')
+                    (3, 1, 'COMMENT-003', 'Second ticket of tenant one', 'OPEN', 'MEDIUM', 3)
                 """);
     }
 
@@ -163,6 +163,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                 )
                 .andExpect(status().isOk())
@@ -184,6 +185,7 @@ class TicketCommentControllerTest {
     void shouldReturnEmptyListWhenTicketHasNoComment() throws Exception {
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                 )
                 .andExpect(status().isOk())
@@ -199,6 +201,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                 )
                 .andExpect(status().isOk())
@@ -215,6 +218,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/2/comments")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                 )
                 .andExpect(status().isBadRequest())
@@ -231,6 +235,75 @@ class TicketCommentControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code")
                         .value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    @WithMockUser(username = "requester-one", roles = "REQUESTER")
+    void shouldAllowRequesterCommentingOwnTicket() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/tickets/3/comments")
+                                .session(tenantSession(1))
+                                .principal(authentication("requester-one", "REQUESTER"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "content": "My own ticket comment."
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.authorId").value(3))
+                .andExpect(jsonPath("$.data.ticketId").value(3));
+    }
+
+    @Test
+    @WithMockUser(username = "requester-one", roles = "REQUESTER")
+    void shouldRejectRequesterCommentingOthersTicket() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/tickets/1/comments")
+                                .session(tenantSession(1))
+                                .principal(authentication("requester-one", "REQUESTER"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "content": "Comment on someone else's ticket."
+                                        }
+                                        """)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockUser(username = "requester-one", roles = "REQUESTER")
+    void shouldAllowRequesterListingOwnTicketComments() throws Exception {
+        insertComment(1, 1, 3, 3, "Requester comment", "2026-09-01 09:00:00");
+
+        mockMvc.perform(
+                        get("/api/v1/tickets/3/comments")
+                                .session(tenantSession(1))
+                                .principal(authentication("requester-one", "REQUESTER"))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].ticketId").value(3))
+                .andExpect(jsonPath("$.data[0].content")
+                        .value("Requester comment"));
+    }
+
+    @Test
+    @WithMockUser(username = "requester-one", roles = "REQUESTER")
+    void shouldRejectRequesterListingOthersTicketComments() throws Exception {
+        insertComment(1, 1, 1, 1, "Agent comment", "2026-09-01 09:00:00");
+
+        mockMvc.perform(
+                        get("/api/v1/tickets/1/comments")
+                                .session(tenantSession(1))
+                                .principal(authentication("requester-one", "REQUESTER"))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
     }
 
     private void insertComment(

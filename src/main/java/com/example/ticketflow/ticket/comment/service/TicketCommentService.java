@@ -1,15 +1,13 @@
 package com.example.ticketflow.ticket.comment.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.ticket.comment.domain.TicketComment;
 import com.example.ticketflow.ticket.comment.dto.CreateCommentRequest;
 import com.example.ticketflow.ticket.comment.mapper.TicketCommentMapper;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
-import com.example.ticketflow.user.domain.UserAccount;
-import com.example.ticketflow.user.domain.enums.UserStatus;
-import com.example.ticketflow.user.mapper.UserAccountMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,55 +17,26 @@ public class TicketCommentService {
 
     private final TicketCommentMapper ticketCommentMapper;
     private final TicketMapper ticketMapper;
-    private final UserAccountMapper userAccountMapper;
 
     public TicketCommentService(
             TicketCommentMapper ticketCommentMapper,
-            TicketMapper ticketMapper,
-            UserAccountMapper userAccountMapper
+            TicketMapper ticketMapper
     ) {
         this.ticketCommentMapper = ticketCommentMapper;
         this.ticketMapper = ticketMapper;
-        this.userAccountMapper = userAccountMapper;
     }
 
     public TicketComment createComment(
-            Long tenantId,
+            CurrentActor actor,
             Long ticketId,
-            String username,
             CreateCommentRequest request
     ) {
-        Ticket ticket = ticketMapper.selectOne(
-                new LambdaQueryWrapper<Ticket>()
-                        .eq(Ticket::getId, ticketId)
-                        .eq(Ticket::getTenantId, tenantId)
-        );
-
-        if (ticket == null) {
-            throw new BusinessException(
-                    "TICKET_NOT_FOUND",
-                    "工单不存在"
-            );
-        }
-
-        UserAccount author = userAccountMapper.selectOne(
-                new LambdaQueryWrapper<UserAccount>()
-                        .eq(UserAccount::getTenantId, tenantId)
-                        .eq(UserAccount::getUsername, username)
-                        .eq(UserAccount::getStatus, UserStatus.ACTIVE)
-        );
-
-        if (author == null) {
-            throw new BusinessException(
-                    "AUTHOR_NOT_FOUND",
-                    "发表评论的用户不存在"
-            );
-        }
+        Ticket ticket = findVisibleTicket(actor, ticketId);
 
         TicketComment comment = new TicketComment();
-        comment.setTenantId(tenantId);
-        comment.setTicketId(ticketId);
-        comment.setAuthorId(author.getId());
+        comment.setTenantId(actor.tenantId());
+        comment.setTicketId(ticket.getId());
+        comment.setAuthorId(actor.userId());
         comment.setContent(request.content().trim());
 
         ticketCommentMapper.insert(comment);
@@ -76,13 +45,32 @@ public class TicketCommentService {
     }
 
     public List<TicketComment> listComments(
-            Long tenantId,
+            CurrentActor actor,
+            Long ticketId
+    ) {
+        findVisibleTicket(actor, ticketId);
+
+        return ticketCommentMapper.selectList(
+                new LambdaQueryWrapper<TicketComment>()
+                        .eq(TicketComment::getTenantId, actor.tenantId())
+                        .eq(TicketComment::getTicketId, ticketId)
+                        .orderByAsc(TicketComment::getCreatedAt)
+        );
+    }
+
+    private Ticket findVisibleTicket(
+            CurrentActor actor,
             Long ticketId
     ) {
         Ticket ticket = ticketMapper.selectOne(
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getId, ticketId)
-                        .eq(Ticket::getTenantId, tenantId)
+                        .eq(Ticket::getTenantId, actor.tenantId())
+                        .eq(
+                                actor.isRequester(),
+                                Ticket::getCreatedBy,
+                                actor.userId()
+                        )
         );
 
         if (ticket == null) {
@@ -92,11 +80,6 @@ public class TicketCommentService {
             );
         }
 
-        return ticketCommentMapper.selectList(
-                new LambdaQueryWrapper<TicketComment>()
-                        .eq(TicketComment::getTenantId, tenantId)
-                        .eq(TicketComment::getTicketId, ticketId)
-                        .orderByAsc(TicketComment::getCreatedAt)
-        );
+        return ticket;
     }
 }
