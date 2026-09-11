@@ -29,8 +29,11 @@ public class UserAccountService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public UserAccount createUser(CreateUserRequest request) {
-        Tenant tenant = tenantMapper.selectById(request.tenantId());
+    public UserAccount createUser(
+            Long tenantId,
+            CreateUserRequest request
+    ) {
+        Tenant tenant = tenantMapper.selectById(tenantId);
 
         if (tenant == null) {
             throw new BusinessException(
@@ -43,7 +46,7 @@ public class UserAccountService {
                 new LambdaQueryWrapper<UserAccount>()
                         .eq(
                                 UserAccount::getTenantId,
-                                request.tenantId()
+                                tenantId
                         )
                         .eq(
                                 UserAccount::getUsername,
@@ -59,7 +62,7 @@ public class UserAccountService {
         }
 
         UserAccount user = new UserAccount();
-        user.setTenantId(request.tenantId());
+        user.setTenantId(tenantId);
         user.setUsername(request.username().trim());
         user.setDisplayName(request.displayName().trim());
 

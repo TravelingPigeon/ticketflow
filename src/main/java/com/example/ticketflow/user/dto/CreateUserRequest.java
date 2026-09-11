@@ -2,13 +2,9 @@ package com.example.ticketflow.user.dto;
 
 import com.example.ticketflow.user.domain.enums.UserRole;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CreateUserRequest(
-
-        @NotNull(message = "租户不能为空")
-        Long tenantId,
 
         @NotBlank(message = "用户名不能为空")
         @Size(max = 64, message = "用户名不能超过64个字符")
