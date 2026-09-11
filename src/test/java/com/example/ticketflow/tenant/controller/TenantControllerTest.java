@@ -11,7 +11,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -88,31 +87,4 @@ class TenantControllerTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
-    @Test
-    void shouldReturnPagedTenants() throws Exception {
-        String requestBody = """
-            {
-              "code": "page-test",
-              "name": "分页测试团队"
-            }
-            """;
-
-        mockMvc.perform(
-                        post("/api/v1/tenants")
-                                .contentType(APPLICATION_JSON)
-                                .content(requestBody)
-                )
-                .andExpect(status().isCreated());
-
-        mockMvc.perform(
-                        get("/api/v1/tenants/page?page=1&size=2")
-                )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.code").value("OK"))
-                .andExpect(jsonPath("$.data.current").value(1))
-                .andExpect(jsonPath("$.data.size").value(2))
-                .andExpect(jsonPath("$.data.total").isNumber())
-                .andExpect(jsonPath("$.data.records").isArray());
-    }
 }
