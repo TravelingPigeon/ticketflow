@@ -170,7 +170,7 @@ class UserControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(createBody("no-session-created"))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
 
         assertEquals(0, countUser("no-session-created"));

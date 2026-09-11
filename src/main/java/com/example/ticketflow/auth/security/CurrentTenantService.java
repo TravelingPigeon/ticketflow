@@ -1,6 +1,6 @@
 package com.example.ticketflow.auth.security;
 
-import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.UnauthenticatedException;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
 
@@ -12,10 +12,7 @@ public class CurrentTenantService {
                 session.getAttribute("CURRENT_TENANT_ID");
 
         if (!(tenantId instanceof Long)) {
-            throw new BusinessException(
-                    "UNAUTHENTICATED",
-                    "请先登录"
-            );
+            throw new UnauthenticatedException("请先登录");
         }
 
         return (Long) tenantId;

@@ -1,5 +1,7 @@
 package com.example.ticketflow.ticket.controller;
 
+import com.example.ticketflow.auth.security.CurrentActor;
+import com.example.ticketflow.auth.security.CurrentActorService;
 import com.example.ticketflow.auth.security.CurrentTenantService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
@@ -11,6 +13,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,25 +24,29 @@ public class TicketController {
 
     private final TicketService ticketService;
     private final CurrentTenantService currentTenantService;
+    private final CurrentActorService currentActorService;
 
     public TicketController(
             TicketService ticketService,
-            CurrentTenantService currentTenantService
+            CurrentTenantService currentTenantService,
+            CurrentActorService currentActorService
     ) {
         this.ticketService = ticketService;
         this.currentTenantService = currentTenantService;
+        this.currentActorService = currentActorService;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Ticket>> createTicket(
             @Valid @RequestBody CreateTicketRequest request,
-            HttpSession session
+            HttpSession session,
+            Authentication authentication
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor =
+                currentActorService.requireActor(session, authentication);
 
         Ticket ticket =
-                ticketService.createTicket(tenantId, request);
+                ticketService.createTicket(actor, request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)

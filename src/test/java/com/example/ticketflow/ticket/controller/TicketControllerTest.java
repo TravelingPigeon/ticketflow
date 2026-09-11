@@ -10,6 +10,13 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -78,6 +85,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -102,6 +110,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -142,6 +151,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -150,6 +160,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -177,6 +188,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication("agent-one", "AGENT"))
                                 .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(tenantOneTicket)
@@ -185,6 +197,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication("agent-two", "AGENT"))
                                 .session(tenantSession(2))
                                 .contentType(APPLICATION_JSON)
                                 .content(tenantTwoTicket)
@@ -416,6 +429,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication(actorNameFor(tenantId), "AGENT"))
                                 .session(tenantSession(tenantId))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -542,6 +556,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
+                                .principal(authentication(actorNameFor(tenantId), "AGENT"))
                                 .session(tenantSession(tenantId))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
@@ -638,5 +653,67 @@ class TicketControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code")
                         .value("FORBIDDEN"));
+    }
+
+    private Authentication authentication(
+            String username,
+            String role
+    ) {
+        return new UsernamePasswordAuthenticationToken(
+                username,
+                null,
+                List.of(
+                        new SimpleGrantedAuthority(
+                                "ROLE_" + role
+                        )
+                )
+        );
+    }
+
+    private String actorNameFor(int tenantId) {
+        return tenantId == 1 ? "agent-one" : "agent-two";
+    }
+
+    @Test
+    void shouldRecordCreatorWhenCreatingTicket() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/tickets")
+                                .session(tenantSession(1))
+                                .principal(authentication("agent-one", "AGENT"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "ticketNo": "CREATOR-001",
+                                          "title": "Record creator test"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.createdBy").value(1));
+
+        Long createdBy = jdbcTemplate.queryForObject(
+                "SELECT created_by FROM tf_ticket WHERE ticket_no = ?",
+                Long.class,
+                "CREATOR-001"
+        );
+
+        assertEquals(1L, createdBy);
+    }
+
+    @Test
+    void shouldRejectCreatingTicketWithoutAuthentication() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/tickets")
+                                .session(tenantSession(1))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "ticketNo": "NOAUTH-001",
+                                          "title": "No auth test"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
     }
 }

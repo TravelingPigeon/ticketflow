@@ -2,6 +2,7 @@ package com.example.ticketflow.ticket.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
@@ -33,7 +34,12 @@ public class TicketService {
         this.userAccountMapper = userAccountMapper;
     }
 
-    public Ticket createTicket(Long tenantId, CreateTicketRequest request) {
+    public Ticket createTicket(
+            CurrentActor actor,
+            CreateTicketRequest request
+    ) {
+        Long tenantId = actor.tenantId();
+
         Tenant tenant = tenantMapper.selectById(tenantId);
 
         if (tenant == null) {
@@ -59,6 +65,7 @@ public class TicketService {
         Ticket ticket = new Ticket();
         ticket.setTenantId(tenantId);
         ticket.setTicketNo(request.ticketNo().trim());
+        ticket.setCreatedBy(actor.userId());
         ticket.setTitle(request.title().trim());
         ticket.setDescription(request.description());
         ticket.setStatus(TicketStatus.OPEN);

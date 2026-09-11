@@ -227,7 +227,7 @@ class TicketCommentControllerTest {
     @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectListingCommentsWithoutLoginSession() throws Exception {
         mockMvc.perform(get("/api/v1/tickets/1/comments"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code")
                         .value("UNAUTHENTICATED"));
