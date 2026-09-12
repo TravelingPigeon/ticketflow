@@ -6,11 +6,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.test.context.TestSecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,7 +71,7 @@ class UserControllerTest {
     void shouldCreateUserInCurrentTenant() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -90,7 +97,7 @@ class UserControllerTest {
     void shouldIgnoreTenantIdSentInRequestBody() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -121,7 +128,7 @@ class UserControllerTest {
     void shouldRejectAgentCreatingUser() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(createBody("agent-created"))
                 )
@@ -137,7 +144,7 @@ class UserControllerTest {
     void shouldRejectRequesterCreatingUser() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                                 .contentType(APPLICATION_JSON)
                                 .content(createBody("requester-created"))
                 )
@@ -151,7 +158,6 @@ class UserControllerTest {
     void shouldRejectAnonymousCreatingUser() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content(createBody("anonymous-created"))
                 )
@@ -181,7 +187,7 @@ class UserControllerTest {
     void shouldRejectUsernameExistingInSameTenant() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(createBody("agent-one"))
                 )
@@ -194,7 +200,7 @@ class UserControllerTest {
     void shouldAllowUsernameUsedByAnotherTenant() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(createBody("admin-two"))
                 )
@@ -208,7 +214,7 @@ class UserControllerTest {
     void shouldDefaultRoleToRequester() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -227,7 +233,7 @@ class UserControllerTest {
     void shouldRejectShortPassword() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -263,9 +269,62 @@ class UserControllerTest {
         return count == null ? 0 : count;
     }
 
-    private MockHttpSession tenantSession(long tenantId) {
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute("CURRENT_TENANT_ID", tenantId);
-        return session;
+    private RequestPostProcessor jwtFor(
+            String username,
+            long tenantId,
+            String role
+    ) {
+        List<Long> ids = jdbcTemplate.queryForList(
+                """
+                        SELECT id
+                        FROM tf_user
+                        WHERE tenant_id = ?
+                          AND username = ?
+                        """,
+                Long.class,
+                tenantId,
+                username
+        );
+
+        long actorId = ids.isEmpty() ? 0L : ids.get(0);
+
+        return jwtFor(username, tenantId, actorId, role);
+    }
+
+    private RequestPostProcessor jwtFor(
+            String username,
+            long tenantId,
+            long actorId,
+            String role
+    ) {
+        return request -> {
+            Jwt jwt = Jwt.withTokenValue("test-token")
+                    .header("alg", "HS256")
+                    .subject(username)
+                    .claim("tenantId", tenantId)
+                    .claim("actorId", actorId)
+                    .claim("actorType", "MEMBER")
+                    .claim("roles", List.of(role))
+                    .build();
+
+            JwtAuthenticationToken authentication =
+                    new JwtAuthenticationToken(
+                            jwt,
+                            List.of(
+                                    new SimpleGrantedAuthority(
+                                            "ROLE_" + role
+                                    )
+                            ),
+                            username
+                    );
+
+            SecurityContext context =
+                    SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+
+            TestSecurityContextHolder.setContext(context);
+
+            return request;
+        };
     }
 }

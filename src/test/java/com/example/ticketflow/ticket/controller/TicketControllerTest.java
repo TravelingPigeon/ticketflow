@@ -6,13 +6,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.test.context.TestSecurityContextHolder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.List;
 
@@ -99,8 +102,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -124,8 +126,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -145,7 +146,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .session(tenantSession(999))
+                                .with(jwtFor("agent-one", 999, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -165,8 +166,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -174,8 +174,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -202,8 +201,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(tenantOneTicket)
                 )
@@ -211,8 +209,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication("agent-two", "AGENT"))
-                                .session(tenantSession(2))
+                                .with(jwtFor("agent-two", 2, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(tenantTwoTicket)
                 )
@@ -220,8 +217,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .param("page", "1")
                                 .param("size", "10")
                 )
@@ -237,7 +233,7 @@ class TicketControllerTest {
     void shouldRejectUnknownTenantWhenListingTickets() throws Exception {
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .session(tenantSession(999))
+                                .with(jwtFor("agent-one", 999, "AGENT"))
                                 .param("page", "1")
                                 .param("size", "10")
                 )
@@ -252,8 +248,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/" + ticketId)
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -269,8 +264,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/" + ticketId)
-                                .principal(authentication("agent-two", "AGENT"))
-                                .session(tenantSession(2))
+                                .with(jwtFor("agent-two", 2, "AGENT"))
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -291,8 +285,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )
@@ -314,8 +307,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )
@@ -338,8 +330,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
-                                .principal(authentication("agent-two", "AGENT"))
-                                .session(tenantSession(2))
+                                .with(jwtFor("agent-two", 2, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )
@@ -361,8 +352,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -380,8 +370,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -407,8 +396,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -430,8 +418,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -453,7 +440,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .session(tenantSession(1))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -489,8 +476,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication(username, role))
-                                .session(tenantSession(tenantId))
+                                .with(jwtFor(username, tenantId, role))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -509,10 +495,63 @@ class TicketControllerTest {
         );
     }
 
-    private MockHttpSession tenantSession(long tenantId) {
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute("CURRENT_TENANT_ID", tenantId);
-        return session;
+    private RequestPostProcessor jwtFor(
+            String username,
+            long tenantId,
+            String role
+    ) {
+        List<Long> ids = jdbcTemplate.queryForList(
+                """
+                        SELECT id
+                        FROM tf_user
+                        WHERE tenant_id = ?
+                          AND username = ?
+                        """,
+                Long.class,
+                tenantId,
+                username
+        );
+
+        long actorId = ids.isEmpty() ? 0L : ids.get(0);
+
+        return jwtFor(username, tenantId, actorId, role);
+    }
+
+    private RequestPostProcessor jwtFor(
+            String username,
+            long tenantId,
+            long actorId,
+            String role
+    ) {
+        return request -> {
+            Jwt jwt = Jwt.withTokenValue("test-token")
+                    .header("alg", "HS256")
+                    .subject(username)
+                    .claim("tenantId", tenantId)
+                    .claim("actorId", actorId)
+                    .claim("actorType", "MEMBER")
+                    .claim("roles", List.of(role))
+                    .build();
+
+            JwtAuthenticationToken authentication =
+                    new JwtAuthenticationToken(
+                            jwt,
+                            List.of(
+                                    new SimpleGrantedAuthority(
+                                            "ROLE_" + role
+                                    )
+                            ),
+                            username
+                    );
+
+            SecurityContext context =
+                    SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+
+            TestSecurityContextHolder.setContext(context);
+
+            return request;
+        };
     }
 
     private void assignTicketDirectly(long ticketId, long assigneeId) {
@@ -541,8 +580,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + processingTicket + "/status")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                     {
@@ -554,8 +592,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .param("status", "PROCESSING")
                 )
                 .andExpect(status().isOk())
@@ -579,8 +616,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .param("priority", "HIGH")
                 )
                 .andExpect(status().isOk())
@@ -599,8 +635,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + assignedTicket + "/assignee")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                     {
@@ -612,8 +647,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .param("assigneeId", "1")
                 )
                 .andExpect(status().isOk())
@@ -637,8 +671,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .principal(authentication(actorNameFor(tenantId), "AGENT"))
-                                .session(tenantSession(tenantId))
+                                .with(jwtFor(actorNameFor(tenantId), tenantId, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -672,8 +705,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/tickets/" + ticketId)
-                                .principal(authentication("admin-one", "ADMIN"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -704,8 +736,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/tickets/" + ticketId)
-                                .principal(authentication("agent-two", "AGENT"))
-                                .session(tenantSession(2))
+                                .with(jwtFor("agent-two", 2, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -729,28 +760,13 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/tickets/" + ticketId)
-                                .session(tenantSession(1))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code")
                         .value("FORBIDDEN"));
-    }
-
-    private Authentication authentication(
-            String username,
-            String role
-    ) {
-        return new UsernamePasswordAuthenticationToken(
-                username,
-                null,
-                List.of(
-                        new SimpleGrantedAuthority(
-                                "ROLE_" + role
-                        )
-                )
-        );
     }
 
     private String actorNameFor(int tenantId) {
@@ -761,8 +777,7 @@ class TicketControllerTest {
     void shouldRecordCreatorWhenCreatingTicket() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .session(tenantSession(1))
-                                .principal(authentication("agent-one", "AGENT"))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -787,7 +802,6 @@ class TicketControllerTest {
     void shouldRejectCreatingTicketWithoutAuthentication() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets")
-                                .session(tenantSession(1))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -807,8 +821,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .param("page", "1")
                                 .param("size", "10")
                 )
@@ -829,8 +842,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets")
-                                .principal(authentication("requester-one", "REQUESTER"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                                 .param("page", "1")
                                 .param("size", "10")
                 )
@@ -853,8 +865,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/" + ticketId)
-                                .principal(authentication("requester-one", "REQUESTER"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -868,8 +879,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/" + ticketId)
-                                .principal(authentication("requester-one", "REQUESTER"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -884,8 +894,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -904,8 +913,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -926,8 +934,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -946,8 +953,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {

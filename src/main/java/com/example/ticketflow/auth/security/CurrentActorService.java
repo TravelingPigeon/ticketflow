@@ -8,33 +8,33 @@ import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
 @Component
 public class CurrentActorService {
 
-    private final CurrentTenantService currentTenantService;
     private final TenantMapper tenantMapper;
     private final UserAccountMapper userAccountMapper;
 
     public CurrentActorService(
-            CurrentTenantService currentTenantService,
             TenantMapper tenantMapper,
             UserAccountMapper userAccountMapper
     ) {
-        this.currentTenantService = currentTenantService;
         this.tenantMapper = tenantMapper;
         this.userAccountMapper = userAccountMapper;
     }
 
-    public CurrentActor requireActor(
-            HttpSession session,
-            Authentication authentication
-    ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+    public CurrentActor requireActor() {
+        Jwt jwt = extractJwt(
+                SecurityContextHolder.getContext().getAuthentication()
+        );
+
+        Long tenantId = requireLongClaim(jwt, "tenantId");
+        Long actorId = requireLongClaim(jwt, "actorId");
 
         Tenant tenant = tenantMapper.selectById(tenantId);
 
@@ -45,22 +45,15 @@ public class CurrentActorService {
             );
         }
 
-        if (authentication == null) {
-            throw new UnauthenticatedException("请先登录");
-        }
-
         UserAccount user = userAccountMapper.selectOne(
                 new LambdaQueryWrapper<UserAccount>()
+                        .eq(UserAccount::getId, actorId)
                         .eq(UserAccount::getTenantId, tenantId)
-                        .eq(
-                                UserAccount::getUsername,
-                                authentication.getName()
-                        )
                         .eq(UserAccount::getStatus, UserStatus.ACTIVE)
         );
 
         if (user == null) {
-            throw new UnauthenticatedException("当前登录用户不存在");
+            throw new UnauthenticatedException("当前登录用户不存在或已停用");
         }
 
         return new CurrentActor(
@@ -69,5 +62,23 @@ public class CurrentActorService {
                 user.getUsername(),
                 user.getRole()
         );
+    }
+
+    private Jwt extractJwt(Authentication authentication) {
+        if (authentication instanceof JwtAuthenticationToken token) {
+            return token.getToken();
+        }
+
+        throw new UnauthenticatedException("请先登录");
+    }
+
+    private Long requireLongClaim(Jwt jwt, String name) {
+        Object value = jwt.getClaim(name);
+
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+
+        throw new UnauthenticatedException("令牌缺少 " + name);
     }
 }

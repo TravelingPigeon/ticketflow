@@ -1,3 +1,9 @@
 spring:
   application:
     name: ticketflow
+
+ticketflow:
+  jwt:
+    # 演示用密钥（HS256 要求至少 32 字节），生产环境必须用环境变量覆盖
+    secret: "dGlja2V0Zmxvdy1kZW1vLWhzMjU2LXNlY3JldC1rZXktcGxlYXNlLXJlcGxhY2U="
+    ttl: PT2H

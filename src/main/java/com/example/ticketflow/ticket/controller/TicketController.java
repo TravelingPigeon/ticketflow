@@ -8,11 +8,9 @@ import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.*;
 import com.example.ticketflow.ticket.service.TicketService;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,12 +32,9 @@ public class TicketController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<Ticket>> createTicket(
-            @Valid @RequestBody CreateTicketRequest request,
-            HttpSession session,
-            Authentication authentication
+            @Valid @RequestBody CreateTicketRequest request
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         Ticket ticket =
                 ticketService.createTicket(actor, request);
@@ -53,12 +48,9 @@ public class TicketController {
     @PutMapping("/{ticketId}")
     public ApiResponse<Ticket> updateTicket(
             @PathVariable Long ticketId,
-            @Valid @RequestBody UpdateTicketRequest request,
-            HttpSession session,
-            Authentication authentication
+            @Valid @RequestBody UpdateTicketRequest request
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         return ApiResponse.success(
                 ticketService.updateTicket(actor, ticketId, request)
@@ -67,16 +59,13 @@ public class TicketController {
 
     @GetMapping
     public ApiResponse<Page<Ticket>> pageTickets(
-            HttpSession session,
-            Authentication authentication,
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) TicketStatus status,
             @RequestParam(required = false) TicketPriority priority,
             @RequestParam(required = false) Long assigneeId
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         TicketQuery query =
                 new TicketQuery(
@@ -99,12 +88,9 @@ public class TicketController {
     @PatchMapping("/{ticketId}/status")
     public ApiResponse<Ticket> updateStatus(
             @PathVariable Long ticketId,
-            @Valid @RequestBody UpdateTicketStatusRequest request,
-            HttpSession session,
-            Authentication authentication
+            @Valid @RequestBody UpdateTicketStatusRequest request
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         return ApiResponse.success(
                 ticketService.updateStatus(actor, ticketId, request)
@@ -115,12 +101,9 @@ public class TicketController {
     @PatchMapping("/{ticketId}/assignee")
     public ApiResponse<Ticket> assignTicket(
             @PathVariable Long ticketId,
-            @Valid @RequestBody AssignTicketRequest request,
-            HttpSession session,
-            Authentication authentication
+            @Valid @RequestBody AssignTicketRequest request
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         return ApiResponse.success(
                 ticketService.assignTicket(actor, ticketId, request)
@@ -129,12 +112,9 @@ public class TicketController {
 
     @GetMapping("/{ticketId}")
     public ApiResponse<Ticket> findTicket(
-            @PathVariable Long ticketId,
-            HttpSession session,
-            Authentication authentication
+            @PathVariable Long ticketId
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         return ApiResponse.success(
                 ticketService.findTicket(actor, ticketId)

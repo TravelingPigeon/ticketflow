@@ -1,12 +1,12 @@
 package com.example.ticketflow.user.controller;
 
-import com.example.ticketflow.auth.security.CurrentTenantService;
+import com.example.ticketflow.auth.security.CurrentActor;
+import com.example.ticketflow.auth.security.CurrentActorService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.dto.CreateUserRequest;
 import com.example.ticketflow.user.dto.UserResponse;
 import com.example.ticketflow.user.service.UserAccountService;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,27 +21,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserAccountService userAccountService;
-    private final CurrentTenantService currentTenantService;
+    private final CurrentActorService currentActorService;
 
     public UserController(
             UserAccountService userAccountService,
-            CurrentTenantService currentTenantService
+            CurrentActorService currentActorService
     ) {
         this.userAccountService = userAccountService;
-        this.currentTenantService = currentTenantService;
+
+        this.currentActorService = currentActorService;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<UserResponse>> createUser(
-            @Valid @RequestBody CreateUserRequest request,
-            HttpSession session
+            @Valid @RequestBody CreateUserRequest request
     ) {
-        Long tenantId =
-                currentTenantService.requireTenantId(session);
+        CurrentActor actor = currentActorService.requireActor();
+
 
         UserAccount user =
-                userAccountService.createUser(tenantId, request);
+                userAccountService.createUser(actor.tenantId(), request);
 
         UserResponse response =
                 UserResponse.from(user);

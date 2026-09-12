@@ -8,8 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import tools.jackson.databind.ObjectMapper;
 
@@ -23,10 +26,16 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            JwtAuthenticationConverter jwtAuthenticationConverter
     ) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
                 .authorizeHttpRequests(auth -> auth
                         // 只放行健康检查与登录入口，其余接口一律要求已认证身份。
                         .requestMatchers(
@@ -35,6 +44,21 @@ public class SecurityConfig {
                                 "/actuator/health"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(
+                                jwtAuthenticationConverter
+                        ))
+                        .authenticationEntryPoint(
+                                (request, response, authException) ->
+                                        writeErrorResponse(
+                                                response,
+                                                objectMapper,
+                                                HttpStatus.UNAUTHORIZED,
+                                                "UNAUTHENTICATED",
+                                                "请先登录"
+                                        )
+                        )
                 )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(
@@ -60,6 +84,20 @@ public class SecurityConfig {
                 );
 
         return http.build();
+    }
+
+    @Bean
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter authoritiesConverter =
+                new JwtGrantedAuthoritiesConverter();
+        authoritiesConverter.setAuthoritiesClaimName("roles");
+        authoritiesConverter.setAuthorityPrefix("ROLE_");
+
+        JwtAuthenticationConverter converter =
+                new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+
+        return converter;
     }
 
     private void writeErrorResponse(

@@ -6,9 +6,7 @@ import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.comment.domain.TicketComment;
 import com.example.ticketflow.ticket.comment.dto.CreateCommentRequest;
 import com.example.ticketflow.ticket.comment.service.TicketCommentService;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,12 +29,9 @@ public class TicketCommentController {
     @PostMapping("/{ticketId}/comments")
     public ApiResponse<TicketComment> createComment(
             @PathVariable Long ticketId,
-            @Valid @RequestBody CreateCommentRequest request,
-            HttpSession session,
-            Authentication authentication
+            @Valid @RequestBody CreateCommentRequest request
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         TicketComment comment =
                 ticketCommentService.createComment(
@@ -50,12 +45,9 @@ public class TicketCommentController {
 
     @GetMapping("/{ticketId}/comments")
     public ApiResponse<List<TicketComment>> listComments(
-            @PathVariable Long ticketId,
-            HttpSession session,
-            Authentication authentication
+            @PathVariable Long ticketId
     ) {
-        CurrentActor actor =
-                currentActorService.requireActor(session, authentication);
+        CurrentActor actor = currentActorService.requireActor();
 
         List<TicketComment> comments =
                 ticketCommentService.listComments(actor, ticketId);

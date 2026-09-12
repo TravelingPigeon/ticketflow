@@ -6,13 +6,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.test.context.TestSecurityContextHolder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.List;
 
@@ -98,8 +101,7 @@ class TicketCommentControllerTest {
     void shouldCreateComment() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/1/comments")
-                                .session(tenantSession(1))
-                                .principal(authentication("agent-one", "AGENT"))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -121,8 +123,7 @@ class TicketCommentControllerTest {
     void shouldRejectCommentForAnotherTenantTicket() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/2/comments")
-                                .session(tenantSession(1))
-                                .principal(authentication("agent-one", "AGENT"))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -140,8 +141,7 @@ class TicketCommentControllerTest {
     void shouldRejectBlankComment() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/1/comments")
-                                .session(tenantSession(1))
-                                .principal(authentication("agent-one", "AGENT"))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -163,8 +163,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -185,8 +184,7 @@ class TicketCommentControllerTest {
     void shouldReturnEmptyListWhenTicketHasNoComment() throws Exception {
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -201,8 +199,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1))
@@ -218,8 +215,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/2/comments")
-                                .principal(authentication("agent-one", "AGENT"))
-                                .session(tenantSession(1))
+                                .with(jwtFor("agent-one", 1, "AGENT"))
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
@@ -242,8 +238,7 @@ class TicketCommentControllerTest {
     void shouldAllowRequesterCommentingOwnTicket() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/3/comments")
-                                .session(tenantSession(1))
-                                .principal(authentication("requester-one", "REQUESTER"))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -261,8 +256,7 @@ class TicketCommentControllerTest {
     void shouldRejectRequesterCommentingOthersTicket() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/1/comments")
-                                .session(tenantSession(1))
-                                .principal(authentication("requester-one", "REQUESTER"))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
@@ -282,8 +276,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/3/comments")
-                                .session(tenantSession(1))
-                                .principal(authentication("requester-one", "REQUESTER"))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1))
@@ -299,8 +292,7 @@ class TicketCommentControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
-                                .session(tenantSession(1))
-                                .principal(authentication("requester-one", "REQUESTER"))
+                                .with(jwtFor("requester-one", 1, "REQUESTER"))
                 )
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
@@ -329,24 +321,62 @@ class TicketCommentControllerTest {
         );
     }
 
-    private Authentication authentication(
+    private RequestPostProcessor jwtFor(
             String username,
+            long tenantId,
             String role
     ) {
-        return new UsernamePasswordAuthenticationToken(
-                username,
-                null,
-                List.of(
-                        new SimpleGrantedAuthority(
-                                "ROLE_" + role
-                        )
-                )
+        List<Long> ids = jdbcTemplate.queryForList(
+                """
+                        SELECT id
+                        FROM tf_user
+                        WHERE tenant_id = ?
+                          AND username = ?
+                        """,
+                Long.class,
+                tenantId,
+                username
         );
+
+        long actorId = ids.isEmpty() ? 0L : ids.get(0);
+
+        return jwtFor(username, tenantId, actorId, role);
     }
 
-    private MockHttpSession tenantSession(long tenantId) {
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute("CURRENT_TENANT_ID", tenantId);
-        return session;
+    private RequestPostProcessor jwtFor(
+            String username,
+            long tenantId,
+            long actorId,
+            String role
+    ) {
+        return request -> {
+            Jwt jwt = Jwt.withTokenValue("test-token")
+                    .header("alg", "HS256")
+                    .subject(username)
+                    .claim("tenantId", tenantId)
+                    .claim("actorId", actorId)
+                    .claim("actorType", "MEMBER")
+                    .claim("roles", List.of(role))
+                    .build();
+
+            JwtAuthenticationToken authentication =
+                    new JwtAuthenticationToken(
+                            jwt,
+                            List.of(
+                                    new SimpleGrantedAuthority(
+                                            "ROLE_" + role
+                                    )
+                            ),
+                            username
+                    );
+
+            SecurityContext context =
+                    SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+
+            TestSecurityContextHolder.setContext(context);
+
+            return request;
+        };
     }
 }
