@@ -41,6 +41,7 @@ class TicketControllerTest {
     void setUp() {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
+        jdbcTemplate.update("DELETE FROM tf_customer");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 

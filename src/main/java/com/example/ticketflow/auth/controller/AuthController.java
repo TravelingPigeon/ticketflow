@@ -47,7 +47,7 @@ public class AuthController {
     ) {
         UserAccount user = authService.verifyCredentials(request);
 
-        TokenService.TokenResult token = tokenService.issueToken(user);
+        TokenService.TokenResult token = tokenService.issueMemberToken(user);
 
         return ApiResponse.success(
                 new LoginResponse(

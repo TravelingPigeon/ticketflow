@@ -41,6 +41,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/ping",
                                 "/api/v1/auth/login",
+                                "/api/v1/portal/auth/register",
+                                "/api/v1/portal/auth/login",
                                 "/actuator/health"
                         ).permitAll()
                         .anyRequest().authenticated()

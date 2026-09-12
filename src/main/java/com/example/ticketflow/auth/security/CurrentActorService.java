@@ -8,6 +8,7 @@ import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -32,6 +33,12 @@ public class CurrentActorService {
         Jwt jwt = extractJwt(
                 SecurityContextHolder.getContext().getAuthentication()
         );
+
+        if (extractActorType(jwt) != ActorType.MEMBER) {
+            throw new AccessDeniedException(
+                    "该接口仅限企业成员访问"
+            );
+        }
 
         Long tenantId = requireLongClaim(jwt, "tenantId");
         Long actorId = requireLongClaim(jwt, "actorId");
@@ -70,6 +77,20 @@ public class CurrentActorService {
         }
 
         throw new UnauthenticatedException("请先登录");
+    }
+
+    private ActorType extractActorType(Jwt jwt) {
+        String value = jwt.getClaimAsString("actorType");
+
+        if (value == null) {
+            throw new UnauthenticatedException("令牌缺少 actorType");
+        }
+
+        try {
+            return ActorType.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            throw new UnauthenticatedException("令牌中的 actorType 不合法");
+        }
     }
 
     private Long requireLongClaim(Jwt jwt, String name) {

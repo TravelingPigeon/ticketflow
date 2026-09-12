@@ -56,6 +56,7 @@ class AuthControllerTest {
     void setUp() {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
+        jdbcTemplate.update("DELETE FROM tf_customer");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -83,7 +84,7 @@ class AuthControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
-                                          "tenantId": 1,
+                                          "tenantCode": "auth-tenant",
                                           "username": "alice",
                                           "password": "Password123"
                                         }
@@ -116,7 +117,7 @@ class AuthControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content("""
                                         {
-                                          "tenantId": 1,
+                                          "tenantCode": "auth-tenant",
                                           "username": "alice",
                                           "password": "Password123"
                                         }
@@ -127,9 +128,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.expiresInSeconds").value(7200))
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.user.id").value(1))
-                .andExpect(jsonPath("$.data.user.username").value("alice"))
-                .andExpect(jsonPath("$.data.user.role").value("ADMIN"));
+                .andExpect(jsonPath("$.data.profile.id").value(1))
+                .andExpect(jsonPath("$.data.profile.username").value("alice"))
+                .andExpect(jsonPath("$.data.profile.role").value("ADMIN"));
     }
 
     @Test

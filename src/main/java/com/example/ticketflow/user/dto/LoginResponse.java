@@ -1,9 +1,9 @@
 package com.example.ticketflow.user.dto;
 
-public record LoginResponse(
+public record LoginResponse<T>(
         String accessToken,
         String tokenType,
         long expiresInSeconds,
-        UserResponse user
+        T profile
 ) {
 }
