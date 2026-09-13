@@ -121,4 +121,16 @@ public class TicketController {
         );
     }
 
+    @PreAuthorize("hasRole('AGENT')")
+    @PatchMapping("/{ticketId}/claim")
+    public ApiResponse<Ticket> claimTicket(
+            @PathVariable Long ticketId
+    ) {
+        CurrentActor actor = currentActorService.requireMember();
+
+        return ApiResponse.success(
+                ticketService.claimTicket(actor, ticketId)
+        );
+    }
+
 }

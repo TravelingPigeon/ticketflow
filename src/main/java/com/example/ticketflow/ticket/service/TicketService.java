@@ -194,7 +194,7 @@ public class TicketService {
 
         requireAgentOwnsTicket(ticket, actor);
 
-        if (!isValidTransition(ticket.getStatus(), request.status())) {
+        if (!ticket.getStatus().canTransitionTo(request.status())) {
             throw new BusinessException(
                     "INVALID_STATUS_TRANSITION",
                     "当前状态不允许变更为目标状态"
@@ -207,17 +207,6 @@ public class TicketService {
         return ticketMapper.selectById(ticketId);
     }
 
-    private boolean isValidTransition(
-            TicketStatus currentStatus,
-            TicketStatus targetStatus
-    ) {
-        return switch (currentStatus) {
-            case OPEN -> targetStatus == TicketStatus.PROCESSING;
-            case PROCESSING -> targetStatus == TicketStatus.RESOLVED;
-            case RESOLVED -> targetStatus == TicketStatus.CLOSED;
-            case CLOSED -> false;
-        };
-    }
 
     public Ticket findTicket(
             CurrentActor actor,
@@ -300,7 +289,15 @@ public class TicketService {
             );
         }
 
-        ticket.setAssigneeId(assignee.getId());
+        return assignTo(ticket, assignee.getId(), ticketId);
+    }
+
+    private Ticket assignTo(
+            Ticket ticket,
+            Long assigneeId,
+            Long ticketId
+    ) {
+        ticket.setAssigneeId(assigneeId);
 
         if (ticket.getStatus() == TicketStatus.OPEN) {
             ticket.setStatus(TicketStatus.PROCESSING);
@@ -309,5 +306,28 @@ public class TicketService {
         ticketMapper.updateById(ticket);
 
         return ticketMapper.selectById(ticketId);
+    }
+
+    public Ticket claimTicket(
+            CurrentActor actor,
+            Long ticketId
+    ) {
+        Ticket ticket = findTenantTicket(actor, ticketId);
+
+        if (ticket.getAssigneeId() != null) {
+            throw new BusinessException(
+                    "TICKET_ALREADY_ASSIGNED",
+                    "工单已被领取或分配"
+            );
+        }
+
+        if (ticket.getStatus() != TicketStatus.OPEN) {
+            throw new BusinessException(
+                    "INVALID_STATUS_TRANSITION",
+                    "只有待处理的工单可以被领取"
+            );
+        }
+
+        return assignTo(ticket, actor.actorId(), ticketId);
     }
 }

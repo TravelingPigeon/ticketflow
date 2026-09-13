@@ -878,6 +878,196 @@ class TicketControllerTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldClaimUnassignedOpenTicket() throws Exception {
+        long ticketId = createTestTicket("CLAIM-001", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/claim")
+                                .with(jwtFor("agent-one", 1, "AGENT"))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.assigneeId").value(1))
+                .andExpect(jsonPath("$.data.status")
+                        .value("PROCESSING"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldRejectClaimingAssignedTicket() throws Exception {
+        long ticketId = createTestTicket("CLAIM-002", 1);
+        assignTicketDirectly(ticketId, 5);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/claim")
+                                .with(jwtFor("agent-one", 1, "AGENT"))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("TICKET_ALREADY_ASSIGNED"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldNotClaimTicketFromAnotherTenant() throws Exception {
+        long ticketId = createTestTicket("CLAIM-003", 2);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/claim")
+                                .with(jwtFor("agent-one", 1, "AGENT"))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("TICKET_NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockUser(username = "agent-one", roles = "AGENT")
+    void shouldRejectClaimingTicketThatIsNotOpen() throws Exception {
+        long ticketId = createTestTicket("CLAIM-004", 1);
+        setTicketStatusDirectly(ticketId, "PROCESSING");
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/claim")
+                                .with(jwtFor("agent-one", 1, "AGENT"))
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("INVALID_STATUS_TRANSITION"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
+    void shouldRejectAdminClaimingTicket() throws Exception {
+        long ticketId = createTestTicket("CLAIM-005", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/claim")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void shouldRejectCustomerClaimingTicket() throws Exception {
+        long ticketId = createTestTicket("CLAIM-006", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/claim")
+                                .with(customerToken(1L, 1L))
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
+    void shouldAllowWaitingCustomerRoundTrip() throws Exception {
+        long ticketId = createTestTicket("FLOW-001", 1);
+
+        changeStatusAsAdmin(ticketId, "PROCESSING");
+        changeStatusAsAdmin(ticketId, "WAITING_CUSTOMER");
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "status": "PROCESSING"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status")
+                        .value("PROCESSING"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
+    void shouldAllowReopeningResolvedTicket() throws Exception {
+        long ticketId = createTestTicket("FLOW-002", 1);
+        setTicketStatusDirectly(ticketId, "RESOLVED");
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "status": "PROCESSING"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status")
+                        .value("PROCESSING"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
+    void shouldRejectSkippingProcessing() throws Exception {
+        long ticketId = createTestTicket("FLOW-003", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "status": "WAITING_CUSTOMER"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("INVALID_STATUS_TRANSITION"));
+    }
+
+    @Test
+    @WithMockUser(username = "admin-one", roles = "ADMIN")
+    void shouldRejectReopeningClosedTicket() throws Exception {
+        long ticketId = createTestTicket("FLOW-004", 1);
+        setTicketStatusDirectly(ticketId, "CLOSED");
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "status": "PROCESSING"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("INVALID_STATUS_TRANSITION"));
+    }
+
+    private void changeStatusAsAdmin(
+            long ticketId,
+            String status
+    ) throws Exception {
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/status")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content(
+                                        """
+                                                {
+                                                  "status": "%s"
+                                                }
+                                                """.formatted(status)
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value(status));
+    }
+
     private RequestPostProcessor customerToken(long tenantId, long actorId) {
         return request -> {
             Jwt jwt = Jwt.withTokenValue("test-token")
