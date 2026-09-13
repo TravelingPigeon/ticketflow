@@ -72,7 +72,7 @@ class TicketCommentControllerTest {
                 INSERT INTO tf_user
                     (id, tenant_id, username, password_hash, display_name, role, status)
                 VALUES
-                    (3, 1, 'requester-one', 'test-hash', 'Requester One', 'REQUESTER', 'ACTIVE')
+                    (3, 1, 'agent-beta', 'test-hash', 'Agent Beta', 'AGENT', 'ACTIVE')
                 """);
 
         jdbcTemplate.update("""
@@ -232,71 +232,6 @@ class TicketCommentControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code")
                         .value("UNAUTHENTICATED"));
-    }
-
-    @Test
-    @WithMockUser(username = "requester-one", roles = "REQUESTER")
-    void shouldAllowRequesterCommentingOwnTicket() throws Exception {
-        mockMvc.perform(
-                        post("/api/v1/tickets/3/comments")
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                                .contentType(APPLICATION_JSON)
-                                .content("""
-                                        {
-                                          "content": "My own ticket comment."
-                                        }
-                                        """)
-                )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.authorId").value(3))
-                .andExpect(jsonPath("$.data.ticketId").value(3));
-    }
-
-    @Test
-    @WithMockUser(username = "requester-one", roles = "REQUESTER")
-    void shouldRejectRequesterCommentingOthersTicket() throws Exception {
-        mockMvc.perform(
-                        post("/api/v1/tickets/1/comments")
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                                .contentType(APPLICATION_JSON)
-                                .content("""
-                                        {
-                                          "content": "Comment on someone else's ticket."
-                                        }
-                                        """)
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
-    }
-
-    @Test
-    @WithMockUser(username = "requester-one", roles = "REQUESTER")
-    void shouldAllowRequesterListingOwnTicketComments() throws Exception {
-        insertComment(1, 1, 3, 3, "Requester comment", "2026-09-01 09:00:00");
-
-        mockMvc.perform(
-                        get("/api/v1/tickets/3/comments")
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].ticketId").value(3))
-                .andExpect(jsonPath("$.data[0].content")
-                        .value("Requester comment"));
-    }
-
-    @Test
-    @WithMockUser(username = "requester-one", roles = "REQUESTER")
-    void shouldRejectRequesterListingOthersTicketComments() throws Exception {
-        insertComment(1, 1, 1, 1, "Agent comment", "2026-09-01 09:00:00");
-
-        mockMvc.perform(
-                        get("/api/v1/tickets/1/comments")
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
     }
 
     private void insertComment(

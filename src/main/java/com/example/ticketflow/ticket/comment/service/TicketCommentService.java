@@ -67,11 +67,6 @@ public class TicketCommentService {
                         .eq(Ticket::getId, ticketId)
                         .eq(Ticket::getTenantId, actor.tenantId())
                         .eq(
-                                actor.isRequester(),
-                                Ticket::getCreatedBy,
-                                actor.actorId()
-                        )
-                        .eq(
                                 actor.isCustomer(),
                                 Ticket::getCustomerId,
                                 actor.actorId()

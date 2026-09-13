@@ -72,13 +72,6 @@ class TicketControllerTest {
         INSERT INTO tf_user
             (id, tenant_id, username, password_hash, display_name, role, status)
         VALUES
-            (3, 1, 'requester-one', 'test-hash', 'Requester One', 'REQUESTER', 'ACTIVE')
-        """);
-
-        jdbcTemplate.update("""
-        INSERT INTO tf_user
-            (id, tenant_id, username, password_hash, display_name, role, status)
-        VALUES
             (4, 1, 'admin-one', 'test-hash', 'Admin One', 'ADMIN', 'ACTIVE')
         """);
 
@@ -407,30 +400,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
-    void shouldRejectRequesterAsAssignee() throws Exception {
-        long ticketId = createTestTicket("ASSIGN-003", 1);
-
-        String requestBody = """
-            {
-              "assigneeId": 3
-            }
-            """;
-
-        mockMvc.perform(
-                        patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .with(jwtFor("admin-one", 1, "ADMIN"))
-                                .contentType(APPLICATION_JSON)
-                                .content(requestBody)
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code")
-                        .value("INVALID_ASSIGNEE_ROLE"));
-    }
-
-    @Test
-    @WithMockUser(username = "requester-one", roles = "REQUESTER")
-    void shouldRejectRequesterAssigningTicket() throws Exception {
+    void shouldRejectCustomerAssigningTicket() throws Exception {
         long ticketId = createTestTicket("ASSIGN-004", 1);
 
         String requestBody = """
@@ -441,7 +411,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/assignee")
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
+                                .with(customerToken(1L, 1L))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -747,8 +717,7 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "requester-one", roles = "REQUESTER")
-    void shouldRejectRequesterUpdatingTicket() throws Exception {
+    void shouldRejectCustomerUpdatingTicket() throws Exception {
         long ticketId = createTestTicket("EDIT-003", 1);
 
         String requestBody = """
@@ -761,7 +730,7 @@ class TicketControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/tickets/" + ticketId)
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
+                                .with(customerToken(1L, 1L))
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
@@ -818,7 +787,7 @@ class TicketControllerTest {
     @Test
     void shouldListAllTenantTicketsForAgent() throws Exception {
         createTestTicket("SCOPE-AGENT-001", 1, "agent-one", "AGENT");
-        createTestTicket("SCOPE-AGENT-002", 1, "requester-one", "REQUESTER");
+        createTestTicket("SCOPE-AGENT-002", 1, "agent-beta", "AGENT");
 
         mockMvc.perform(
                         get("/api/v1/tickets")
@@ -828,63 +797,6 @@ class TicketControllerTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.total").value(2));
-    }
-
-    @Test
-    void shouldOnlyListOwnTicketsForRequester() throws Exception {
-        createTestTicket("SCOPE-REQ-001", 1, "agent-one", "AGENT");
-
-        long ownTicketId = createTestTicket(
-                "SCOPE-REQ-002",
-                1,
-                "requester-one",
-                "REQUESTER"
-        );
-
-        mockMvc.perform(
-                        get("/api/v1/tickets")
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                                .param("page", "1")
-                                .param("size", "10")
-                )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.total").value(1))
-                .andExpect(jsonPath("$.data.records[0].id")
-                        .value((int) ownTicketId))
-                .andExpect(jsonPath("$.data.records[0].ticketNo")
-                        .value("SCOPE-REQ-002"));
-    }
-
-    @Test
-    void shouldAllowRequesterReadingOwnTicket() throws Exception {
-        long ticketId = createTestTicket(
-                "SCOPE-DETAIL-001",
-                1,
-                "requester-one",
-                "REQUESTER"
-        );
-
-        mockMvc.perform(
-                        get("/api/v1/tickets/" + ticketId)
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.id").value((int) ticketId));
-    }
-
-    @Test
-    void shouldNotExposeOtherTicketToRequester() throws Exception {
-        long ticketId =
-                createTestTicket("SCOPE-DETAIL-002", 1, "agent-one", "AGENT");
-
-        mockMvc.perform(
-                        get("/api/v1/tickets/" + ticketId)
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.code").value("TICKET_NOT_FOUND"));
     }
 
     @Test
@@ -964,5 +876,33 @@ class TicketControllerTest {
                 )
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    private RequestPostProcessor customerToken(long tenantId, long actorId) {
+        return request -> {
+            Jwt jwt = Jwt.withTokenValue("test-token")
+                    .header("alg", "HS256")
+                    .subject("customer@example.com")
+                    .claim("tenantId", tenantId)
+                    .claim("actorId", actorId)
+                    .claim("actorType", "CUSTOMER")
+                    .claim("roles", List.of())
+                    .build();
+
+            JwtAuthenticationToken authentication =
+                    new JwtAuthenticationToken(
+                            jwt,
+                            List.of(),
+                            "customer@example.com"
+                    );
+
+            SecurityContext context =
+                    SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+
+            TestSecurityContextHolder.setContext(context);
+
+            return request;
+        };
     }
 }

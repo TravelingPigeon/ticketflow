@@ -27,10 +27,6 @@ public record CurrentActor(
         return actorType == ActorType.CUSTOMER;
     }
 
-    public boolean isRequester() {
-        return isMember() && role == UserRole.REQUESTER;
-    }
-
     public boolean isAgent() {
         return isMember() && role == UserRole.AGENT;
     }

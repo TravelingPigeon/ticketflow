@@ -61,7 +61,6 @@ class UserControllerTest {
                 VALUES
                     (1, 1, 'admin-one', 'test-hash', 'Admin One', 'ADMIN', 'ACTIVE'),
                     (2, 1, 'agent-one', 'test-hash', 'Agent One', 'AGENT', 'ACTIVE'),
-                    (3, 1, 'requester-one', 'test-hash', 'Requester One', 'REQUESTER', 'ACTIVE'),
                     (4, 2, 'admin-two', 'test-hash', 'Admin Two', 'ADMIN', 'ACTIVE'),
                     (5, 2, 'agent-one', 'test-hash', 'Agent One Of Tenant Two', 'AGENT', 'ACTIVE')
                 """);
@@ -141,21 +140,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "requester-one", roles = "REQUESTER")
-    void shouldRejectRequesterCreatingUser() throws Exception {
-        mockMvc.perform(
-                        post("/api/v1/users")
-                                .with(jwtFor("requester-one", 1, "REQUESTER"))
-                                .contentType(APPLICATION_JSON)
-                                .content(createBody("requester-created"))
-                )
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
-
-        assertEquals(0, countUser("requester-created"));
-    }
-
-    @Test
     void shouldRejectAnonymousCreatingUser() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -212,7 +196,7 @@ class UserControllerTest {
 
     @Test
     @WithMockUser(username = "admin-one", roles = "ADMIN")
-    void shouldDefaultRoleToRequester() throws Exception {
+    void shouldDefaultRoleToAgent() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
                                 .with(jwtFor("admin-one", 1, "ADMIN"))
@@ -226,7 +210,7 @@ class UserControllerTest {
                                         """)
                 )
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.role").value("REQUESTER"));
+                .andExpect(jsonPath("$.data.role").value("AGENT"));
     }
 
     @Test

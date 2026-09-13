@@ -12,7 +12,6 @@ import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.*;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
 import com.example.ticketflow.user.domain.UserAccount;
-import com.example.ticketflow.user.domain.enums.UserRole;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
 import org.springframework.security.access.AccessDeniedException;
@@ -162,11 +161,6 @@ public class TicketService {
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getTenantId, tenantId)
                         .eq(
-                                actor.isRequester(),
-                                Ticket::getCreatedBy,
-                                actor.actorId()
-                        )
-                        .eq(
                                 actor.isCustomer(),
                                 Ticket::getCustomerId,
                                 actor.actorId()
@@ -233,11 +227,6 @@ public class TicketService {
                 new LambdaQueryWrapper<Ticket>()
                         .eq(Ticket::getId, ticketId)
                         .eq(Ticket::getTenantId, actor.tenantId())
-                        .eq(
-                                actor.isRequester(),
-                                Ticket::getCreatedBy,
-                                actor.actorId()
-                        )
                         .eq(
                                 actor.isCustomer(),
                                 Ticket::getCustomerId,
@@ -308,13 +297,6 @@ public class TicketService {
             throw new BusinessException(
                     "ASSIGNEE_NOT_FOUND",
                     "处理人不存在或不属于当前租户"
-            );
-        }
-
-        if (assignee.getRole() == UserRole.REQUESTER) {
-            throw new BusinessException(
-                    "INVALID_ASSIGNEE_ROLE",
-                    "不能将工单分配给普通用户"
             );
         }
 

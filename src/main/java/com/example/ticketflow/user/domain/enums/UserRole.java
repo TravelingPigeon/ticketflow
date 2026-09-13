@@ -4,7 +4,5 @@ public enum UserRole {
 
     ADMIN,
 
-    AGENT,
-
-    REQUESTER
+    AGENT
 }

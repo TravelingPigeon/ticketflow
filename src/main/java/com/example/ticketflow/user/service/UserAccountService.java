@@ -72,7 +72,7 @@ public class UserAccountService {
         user.setPasswordHash(passwordHash);
 
         if (request.role() == null) {
-            user.setRole(UserRole.REQUESTER);
+            user.setRole(UserRole.AGENT);
         } else {
             user.setRole(request.role());
         }
