@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS tf_ticket (
     status VARCHAR(32) NOT NULL DEFAULT 'OPEN',
     priority VARCHAR(16) NOT NULL DEFAULT 'MEDIUM',
     created_by BIGINT,
+    customer_id BIGINT,
     assignee_id BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -37,7 +37,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserResponse>> createUser(
             @Valid @RequestBody CreateUserRequest request
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
 
         UserAccount user =

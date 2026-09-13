@@ -36,7 +36,7 @@ public class TicketCommentService {
         TicketComment comment = new TicketComment();
         comment.setTenantId(actor.tenantId());
         comment.setTicketId(ticket.getId());
-        comment.setAuthorId(actor.userId());
+        comment.setAuthorId(actor.actorId());
         comment.setContent(request.content().trim());
 
         ticketCommentMapper.insert(comment);
@@ -69,7 +69,12 @@ public class TicketCommentService {
                         .eq(
                                 actor.isRequester(),
                                 Ticket::getCreatedBy,
-                                actor.userId()
+                                actor.actorId()
+                        )
+                        .eq(
+                                actor.isCustomer(),
+                                Ticket::getCustomerId,
+                                actor.actorId()
                         )
         );
 

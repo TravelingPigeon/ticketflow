@@ -28,6 +28,8 @@ public class Ticket {
 
     private Long createdBy;
 
+    private Long customerId;
+
     private Long assigneeId;
 
     private LocalDateTime createdAt;
@@ -120,5 +122,13 @@ public class Ticket {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
     }
 }

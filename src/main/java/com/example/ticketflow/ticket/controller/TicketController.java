@@ -34,7 +34,7 @@ public class TicketController {
     public ResponseEntity<ApiResponse<Ticket>> createTicket(
             @Valid @RequestBody CreateTicketRequest request
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         Ticket ticket =
                 ticketService.createTicket(actor, request);
@@ -50,7 +50,7 @@ public class TicketController {
             @PathVariable Long ticketId,
             @Valid @RequestBody UpdateTicketRequest request
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         return ApiResponse.success(
                 ticketService.updateTicket(actor, ticketId, request)
@@ -65,7 +65,7 @@ public class TicketController {
             @RequestParam(required = false) TicketPriority priority,
             @RequestParam(required = false) Long assigneeId
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         TicketQuery query =
                 new TicketQuery(
@@ -90,7 +90,7 @@ public class TicketController {
             @PathVariable Long ticketId,
             @Valid @RequestBody UpdateTicketStatusRequest request
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         return ApiResponse.success(
                 ticketService.updateStatus(actor, ticketId, request)
@@ -103,7 +103,7 @@ public class TicketController {
             @PathVariable Long ticketId,
             @Valid @RequestBody AssignTicketRequest request
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         return ApiResponse.success(
                 ticketService.assignTicket(actor, ticketId, request)
@@ -114,7 +114,7 @@ public class TicketController {
     public ApiResponse<Ticket> findTicket(
             @PathVariable Long ticketId
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         return ApiResponse.success(
                 ticketService.findTicket(actor, ticketId)

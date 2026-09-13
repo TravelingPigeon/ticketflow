@@ -31,7 +31,7 @@ public class TicketCommentController {
             @PathVariable Long ticketId,
             @Valid @RequestBody CreateCommentRequest request
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         TicketComment comment =
                 ticketCommentService.createComment(
@@ -47,7 +47,7 @@ public class TicketCommentController {
     public ApiResponse<List<TicketComment>> listComments(
             @PathVariable Long ticketId
     ) {
-        CurrentActor actor = currentActorService.requireActor();
+        CurrentActor actor = currentActorService.requireMember();
 
         List<TicketComment> comments =
                 ticketCommentService.listComments(actor, ticketId);

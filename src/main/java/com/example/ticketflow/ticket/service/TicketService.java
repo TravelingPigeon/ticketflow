@@ -65,7 +65,15 @@ public class TicketService {
 
         Ticket ticket = new Ticket();
         ticket.setTenantId(tenantId);
-        ticket.setCreatedBy(actor.userId());
+
+        if (actor.isCustomer()) {
+            // 客户提单：记录"这个问题属于哪位客户"
+            ticket.setCustomerId(actor.actorId());
+        } else {
+            // 成员建单：记录"是谁录进来的"（内部协作单，或客服代客户提单）
+            ticket.setCreatedBy(actor.actorId());
+        }
+
         ticket.setTicketNo(request.ticketNo().trim());
         ticket.setTitle(request.title().trim());
         ticket.setDescription(request.description());
@@ -156,7 +164,12 @@ public class TicketService {
                         .eq(
                                 actor.isRequester(),
                                 Ticket::getCreatedBy,
-                                actor.userId()
+                                actor.actorId()
+                        )
+                        .eq(
+                                actor.isCustomer(),
+                                Ticket::getCustomerId,
+                                actor.actorId()
                         )
                         .eq(
                                 query.status() != null,
@@ -223,7 +236,12 @@ public class TicketService {
                         .eq(
                                 actor.isRequester(),
                                 Ticket::getCreatedBy,
-                                actor.userId()
+                                actor.actorId()
+                        )
+                        .eq(
+                                actor.isCustomer(),
+                                Ticket::getCustomerId,
+                                actor.actorId()
                         )
         );
 
@@ -265,7 +283,7 @@ public class TicketService {
             return;
         }
 
-        if (!actor.userId().equals(ticket.getAssigneeId())) {
+        if (!actor.actorId().equals(ticket.getAssigneeId())) {
             throw new AccessDeniedException(
                     "工单未分配给你，无法处理"
             );

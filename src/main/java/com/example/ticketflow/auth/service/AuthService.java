@@ -21,7 +21,8 @@ public class AuthService {
 
     public AuthService(
             UserAccountMapper userAccountMapper,
-            PasswordEncoder passwordEncoder, TenantMapper tenantMapper
+            PasswordEncoder passwordEncoder,
+            TenantMapper tenantMapper
     ) {
         this.userAccountMapper = userAccountMapper;
         this.passwordEncoder = passwordEncoder;

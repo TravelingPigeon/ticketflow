@@ -3,6 +3,9 @@ package com.example.ticketflow.auth.security;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.common.exception.UnauthenticatedException;
+import com.example.ticketflow.customer.domain.Customer;
+import com.example.ticketflow.customer.domain.enums.CustomerStatus;
+import com.example.ticketflow.customer.mapper.CustomerMapper;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.user.domain.UserAccount;
@@ -20,37 +23,29 @@ public class CurrentActorService {
 
     private final TenantMapper tenantMapper;
     private final UserAccountMapper userAccountMapper;
+    private final CustomerMapper customerMapper;
 
     public CurrentActorService(
             TenantMapper tenantMapper,
-            UserAccountMapper userAccountMapper
+            UserAccountMapper userAccountMapper,
+            CustomerMapper customerMapper
     ) {
         this.tenantMapper = tenantMapper;
         this.userAccountMapper = userAccountMapper;
+        this.customerMapper = customerMapper;
     }
 
-    public CurrentActor requireActor() {
-        Jwt jwt = extractJwt(
-                SecurityContextHolder.getContext().getAuthentication()
-        );
+    public CurrentActor requireMember() {
+        Jwt jwt = requireToken();
 
         if (extractActorType(jwt) != ActorType.MEMBER) {
-            throw new AccessDeniedException(
-                    "该接口仅限企业成员访问"
-            );
+            throw new AccessDeniedException("该接口仅限企业成员访问");
         }
 
         Long tenantId = requireLongClaim(jwt, "tenantId");
         Long actorId = requireLongClaim(jwt, "actorId");
 
-        Tenant tenant = tenantMapper.selectById(tenantId);
-
-        if (tenant == null) {
-            throw new BusinessException(
-                    "TENANT_NOT_FOUND",
-                    "租户不存在"
-            );
-        }
+        requireTenant(tenantId);
 
         UserAccount user = userAccountMapper.selectOne(
                 new LambdaQueryWrapper<UserAccount>()
@@ -65,10 +60,60 @@ public class CurrentActorService {
 
         return new CurrentActor(
                 tenantId,
+                ActorType.MEMBER,
                 user.getId(),
                 user.getUsername(),
                 user.getRole()
         );
+    }
+
+    public CurrentActor requireCustomer() {
+        Jwt jwt = requireToken();
+
+        if (extractActorType(jwt) != ActorType.CUSTOMER) {
+            throw new AccessDeniedException("该接口仅限客户访问");
+        }
+
+        Long tenantId = requireLongClaim(jwt, "tenantId");
+        Long actorId = requireLongClaim(jwt, "actorId");
+
+        requireTenant(tenantId);
+
+        Customer customer = customerMapper.selectOne(
+                new LambdaQueryWrapper<Customer>()
+                        .eq(Customer::getId, actorId)
+                        .eq(Customer::getTenantId, tenantId)
+                        .eq(Customer::getStatus, CustomerStatus.ACTIVE)
+        );
+
+        if (customer == null) {
+            throw new UnauthenticatedException("当前客户不存在或已停用");
+        }
+
+        return new CurrentActor(
+                tenantId,
+                ActorType.CUSTOMER,
+                customer.getId(),
+                customer.getEmail(),
+                null
+        );
+    }
+
+    private Jwt requireToken() {
+        return extractJwt(
+                SecurityContextHolder.getContext().getAuthentication()
+        );
+    }
+
+    private void requireTenant(Long tenantId) {
+        Tenant tenant = tenantMapper.selectById(tenantId);
+
+        if (tenant == null) {
+            throw new BusinessException(
+                    "TENANT_NOT_FOUND",
+                    "租户不存在"
+            );
+        }
     }
 
     private Jwt extractJwt(Authentication authentication) {
