@@ -8,6 +8,7 @@ import com.example.ticketflow.ticket.domain.TicketOperation;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.AssignTicketRequest;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
+import com.example.ticketflow.ticket.dto.TicketDetailResponse;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.dto.UpdateTicketRequest;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -336,6 +338,76 @@ class TicketOperationAuditTest {
         assertEquals(0, countOperations(ticketId, "STATUS_CHANGED"));
         assertEquals(2, countAllOperations(ticketId));
         assertEquals("OPEN", statusOf(ticketId));
+    }
+
+    @Test
+    void shouldMapAllTicketFieldsIntoDetailResponse() {
+        Ticket created = ticketService.createTicket(
+                member(4L, "admin-one", UserRole.ADMIN),
+                new CreateTicketRequest(
+                        "AUDIT-012",
+                        "映射检查",
+                        "描述",
+                        TicketPriority.HIGH
+                )
+        );
+
+        long ticketId = created.getId();
+
+        ticketService.claimTicket(
+                member(5L, "agent-beta", UserRole.AGENT),
+                ticketId
+        );
+
+        TicketDetailResponse detail = ticketService.findTicketDetail(
+                member(4L, "admin-one", UserRole.ADMIN),
+                ticketId
+        );
+
+        // createdBy / customerId / assigneeId 都是 Long，最容易在 of() 里写串行
+        assertEquals(ticketId, detail.id());
+        assertEquals(1L, detail.tenantId());
+        assertEquals("AUDIT-012", detail.ticketNo());
+        assertEquals("映射检查", detail.title());
+        assertEquals("描述", detail.description());
+        assertEquals(TicketStatus.PROCESSING, detail.status());
+        assertEquals(TicketPriority.HIGH, detail.priority());
+        assertEquals(4L, detail.createdBy());
+        assertEquals(5L, detail.assigneeId());
+        assertNull(detail.customerId());
+        assertNotNull(detail.createdAt());
+    }
+
+    @Test
+    void shouldReturnSameTimelineFromDetailAndOperationsLookup() {
+        long ticketId = createOpenTicket(
+                member(4L, "admin-one", UserRole.ADMIN),
+                "AUDIT-013"
+        );
+
+        ticketService.claimTicket(
+                member(5L, "agent-beta", UserRole.AGENT),
+                ticketId
+        );
+
+        CurrentActor admin = member(4L, "admin-one", UserRole.ADMIN);
+
+        TicketDetailResponse detail = ticketService.findTicketDetail(
+                admin,
+                ticketId
+        );
+
+        List<TicketOperation> viaEndpoint = ticketService.listOperations(
+                admin,
+                ticketId
+        );
+
+        // 两个入口共用同一段查询，条数和顺序都不该有偏差
+        assertEquals(3, detail.operations().size());
+        assertEquals(
+                viaEndpoint.stream().map(TicketOperation::getId).toList(),
+                detail.operations().stream().map(TicketOperation::getId).toList()
+        );
     }
 
     private long createOpenTicket(CurrentActor actor, String ticketNo) {

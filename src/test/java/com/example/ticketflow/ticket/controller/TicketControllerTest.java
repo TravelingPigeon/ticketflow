@@ -268,6 +268,73 @@ class TicketControllerTest {
     }
 
     @Test
+    void shouldReturnOperationTimelineInTicketDetail() throws Exception {
+        long ticketId = createTestTicket("DETAIL-OPS-001", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + ticketId + "/claim")
+                                .with(jwtFor("agent-beta", 1, "AGENT"))
+                )
+                .andExpect(status().isOk());
+
+        changeStatusAsAdmin(ticketId, "WAITING_CUSTOMER");
+
+        mockMvc.perform(
+                        get("/api/v1/tickets/" + ticketId)
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.ticketNo")
+                        .value("DETAIL-OPS-001"))
+                .andExpect(jsonPath("$.data.status")
+                        .value("WAITING_CUSTOMER"))
+                // 建单、领取、领取连带的状态变化、手工状态变化——四条按发生顺序排好
+                .andExpect(jsonPath("$.data.operations.length()").value(4))
+                .andExpect(jsonPath("$.data.operations[0].operationType")
+                        .value("CREATED"))
+                .andExpect(jsonPath("$.data.operations[0].toValue")
+                        .value("OPEN"))
+                .andExpect(jsonPath("$.data.operations[1].operationType")
+                        .value("CLAIMED"))
+                .andExpect(jsonPath("$.data.operations[1].toValue")
+                        .value("5"))
+                .andExpect(jsonPath("$.data.operations[2].operationType")
+                        .value("STATUS_CHANGED"))
+                .andExpect(jsonPath("$.data.operations[2].fromValue")
+                        .value("OPEN"))
+                .andExpect(jsonPath("$.data.operations[2].toValue")
+                        .value("PROCESSING"))
+                .andExpect(jsonPath("$.data.operations[3].fromValue")
+                        .value("PROCESSING"))
+                .andExpect(jsonPath("$.data.operations[3].toValue")
+                        .value("WAITING_CUSTOMER"));
+    }
+
+    @Test
+    void shouldNotLeakOperationsFromAnotherTicket() throws Exception {
+        long claimedTicketId = createTestTicket("OPS-LEAK-001", 1);
+        long untouchedTicketId = createTestTicket("OPS-LEAK-002", 1);
+
+        mockMvc.perform(
+                        patch("/api/v1/tickets/" + claimedTicketId + "/claim")
+                                .with(jwtFor("agent-beta", 1, "AGENT"))
+                )
+                .andExpect(status().isOk());
+
+        // 另一张工单的时间线不能被顺带带出来
+        mockMvc.perform(
+                        get("/api/v1/tickets/" + untouchedTicketId)
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.ticketNo")
+                        .value("OPS-LEAK-002"))
+                .andExpect(jsonPath("$.data.operations.length()").value(1))
+                .andExpect(jsonPath("$.data.operations[0].operationType")
+                        .value("CREATED"));
+    }
+
+    @Test
     @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldUpdateTicketStatus() throws Exception {
         long ticketId = createTestTicket("STATUS-001", 1);

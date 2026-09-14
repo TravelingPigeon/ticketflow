@@ -145,6 +145,22 @@ class PortalTicketControllerTest {
     }
 
     @Test
+    void shouldNotExposeOperationTimelineOnPortalDetail() throws Exception {
+        createCustomerTicket(1L, 1L, "CUST-001");
+
+        long ticketId = ticketIdOf("CUST-001");
+
+        // 审计记录里有"谁领取了、分配给了谁"，属于企业内部协作信息，客户侧不应该看到
+        mockMvc.perform(
+                        get("/api/v1/portal/tickets/" + ticketId)
+                                .with(customerToken(1L, 1L))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.ticketNo").value("CUST-001"))
+                .andExpect(jsonPath("$.data.operations").doesNotExist());
+    }
+
+    @Test
     void shouldRejectMemberTokenOnPortalApi() throws Exception {
         mockMvc.perform(
                         get("/api/v1/portal/tickets")

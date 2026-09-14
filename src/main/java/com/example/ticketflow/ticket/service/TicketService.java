@@ -309,6 +309,18 @@ public class TicketService {
         return ticket;
     }
 
+    public TicketDetailResponse findTicketDetail(
+            CurrentActor actor,
+            Long ticketId
+    ) {
+        Ticket ticket = findTicket(actor, ticketId);
+
+        return TicketDetailResponse.of(
+                ticket,
+                listOperationsFor(ticket)
+        );
+    }
+
     private Ticket findTenantTicket(
             CurrentActor actor,
             Long ticketId
@@ -461,12 +473,17 @@ public class TicketService {
             CurrentActor actor,
             Long ticketId
     ) {
-        findTicket(actor, ticketId);
+        return listOperationsFor(findTicket(actor, ticketId));
+    }
 
+    private List<TicketOperation> listOperationsFor(Ticket ticket) {
         return ticketOperationMapper.selectList(
                 new LambdaQueryWrapper<TicketOperation>()
-                        .eq(TicketOperation::getTenantId, actor.tenantId())
-                        .eq(TicketOperation::getTicketId, ticketId)
+                        .eq(
+                                TicketOperation::getTenantId,
+                                ticket.getTenantId()
+                        )
+                        .eq(TicketOperation::getTicketId, ticket.getId())
                         .orderByAsc(TicketOperation::getId)
         );
     }

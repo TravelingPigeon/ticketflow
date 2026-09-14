@@ -114,13 +114,13 @@ public class TicketController {
     }
 
     @GetMapping("/{ticketId}")
-    public ApiResponse<Ticket> findTicket(
+    public ApiResponse<TicketDetailResponse> findTicket(
             @PathVariable Long ticketId
     ) {
         CurrentActor actor = currentActorService.requireMember();
 
         return ApiResponse.success(
-                ticketService.findTicket(actor, ticketId)
+                ticketService.findTicketDetail(actor, ticketId)
         );
     }
 
