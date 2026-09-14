@@ -3,6 +3,7 @@ package com.example.ticketflow.ticket.domain;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 
@@ -31,6 +32,9 @@ public class Ticket {
     private Long customerId;
 
     private Long assigneeId;
+
+    @Version
+    private Long version;
 
     private LocalDateTime createdAt;
 
@@ -130,5 +134,13 @@ public class Ticket {
 
     public void setCustomerId(Long customerId) {
         this.customerId = customerId;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 }

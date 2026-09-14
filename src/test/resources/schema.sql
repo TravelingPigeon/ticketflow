@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS tf_ticket (
     created_by BIGINT,
     customer_id BIGINT,
     assignee_id BIGINT,
+    version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

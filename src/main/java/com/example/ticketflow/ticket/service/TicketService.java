@@ -102,7 +102,12 @@ public class TicketService {
         ticket.setDescription(request.description());
         ticket.setPriority(request.priority());
 
-        ticketMapper.updateById(ticket);
+        if (ticketMapper.updateById(ticket) == 0) {
+            throw new BusinessException(
+                    "TICKET_CONCURRENT_MODIFICATION",
+                    "工单已被其他请求修改，请刷新后重试"
+            );
+        }
 
         return ticketMapper.selectById(ticketId);
     }
@@ -202,7 +207,12 @@ public class TicketService {
         }
 
         ticket.setStatus(request.status());
-        ticketMapper.updateById(ticket);
+        if (ticketMapper.updateById(ticket) == 0) {
+            throw new BusinessException(
+                    "TICKET_CONCURRENT_MODIFICATION",
+                    "工单已被其他请求修改，请刷新后重试"
+            );
+        }
 
         return ticketMapper.selectById(ticketId);
     }
@@ -303,7 +313,14 @@ public class TicketService {
             ticket.setStatus(TicketStatus.PROCESSING);
         }
 
-        ticketMapper.updateById(ticket);
+        int updatedRows = ticketMapper.updateById(ticket);
+
+        if (updatedRows == 0) {
+            throw new BusinessException(
+                    "TICKET_CONCURRENT_MODIFICATION",
+                    "工单已被其他请求修改，请刷新后重试"
+            );
+        }
 
         return ticketMapper.selectById(ticketId);
     }
