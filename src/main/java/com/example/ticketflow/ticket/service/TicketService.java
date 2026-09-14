@@ -7,15 +7,23 @@ import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.ticket.domain.Ticket;
+import com.example.ticketflow.ticket.domain.TicketOperation;
+import com.example.ticketflow.ticket.domain.enums.TicketOperationType;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.*;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
+import com.example.ticketflow.ticket.mapper.TicketOperationMapper;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @Service
 public class TicketService {
@@ -23,17 +31,21 @@ public class TicketService {
     private final TicketMapper ticketMapper;
     private final TenantMapper tenantMapper;
     private final UserAccountMapper userAccountMapper;
+    private final TicketOperationMapper ticketOperationMapper;
 
     public TicketService(
             TicketMapper ticketMapper,
             TenantMapper tenantMapper,
-            UserAccountMapper userAccountMapper
+            UserAccountMapper userAccountMapper,
+            TicketOperationMapper ticketOperationMapper
     ) {
         this.ticketMapper = ticketMapper;
         this.tenantMapper = tenantMapper;
         this.userAccountMapper = userAccountMapper;
+        this.ticketOperationMapper = ticketOperationMapper;
     }
 
+    @Transactional
     public Ticket createTicket(
             CurrentActor actor,
             CreateTicketRequest request
@@ -86,9 +98,18 @@ public class TicketService {
 
         ticketMapper.insert(ticket);
 
+        recordOperation(
+                ticket,
+                actor,
+                TicketOperationType.CREATED,
+                null,
+                ticket.getStatus().name()
+        );
+
         return ticketMapper.selectById(ticket.getId());
     }
 
+    @Transactional
     public Ticket updateTicket(
             CurrentActor actor,
             Long ticketId,
@@ -98,14 +119,47 @@ public class TicketService {
 
         requireAgentOwnsTicket(ticket, actor);
 
+        // 1. 改之前，先把旧值记下来
+        String previousTitle = ticket.getTitle();
+        String previousDescription = ticket.getDescription();
+        TicketPriority previousPriority = ticket.getPriority();
+
+        // 2. 应用新值
         ticket.setTitle(request.title().trim());
         ticket.setDescription(request.description());
         ticket.setPriority(request.priority());
 
+        // 3. 落库（乐观锁：版本号对不上时返回 0）
         if (ticketMapper.updateById(ticket) == 0) {
             throw new BusinessException(
                     "TICKET_CONCURRENT_MODIFICATION",
                     "工单已被其他请求修改，请刷新后重试"
+            );
+        }
+
+        // 4. 对比一遍，看看到底改了哪些字段
+        List<String> changedFields = new ArrayList<>();
+
+        if (!Objects.equals(previousTitle, ticket.getTitle())) {
+            changedFields.add("title");
+        }
+
+        if (!Objects.equals(previousDescription, ticket.getDescription())) {
+            changedFields.add("description");
+        }
+
+        if (previousPriority != ticket.getPriority()) {
+            changedFields.add("priority");
+        }
+
+        // 5. 一个字段都没变就不写记录
+        if (!changedFields.isEmpty()) {
+            recordOperation(
+                    ticket,
+                    actor,
+                    TicketOperationType.UPDATED,
+                    null,
+                    String.join(",", changedFields)
             );
         }
 
@@ -190,6 +244,7 @@ public class TicketService {
         return ticketMapper.selectPage(page, wrapper);
     }
 
+    @Transactional
     public Ticket updateStatus(
             CurrentActor actor,
             Long ticketId,
@@ -199,7 +254,9 @@ public class TicketService {
 
         requireAgentOwnsTicket(ticket, actor);
 
-        if (!ticket.getStatus().canTransitionTo(request.status())) {
+        TicketStatus previousStatus = ticket.getStatus();
+
+        if (!previousStatus.canTransitionTo(request.status())) {
             throw new BusinessException(
                     "INVALID_STATUS_TRANSITION",
                     "当前状态不允许变更为目标状态"
@@ -207,12 +264,21 @@ public class TicketService {
         }
 
         ticket.setStatus(request.status());
+
         if (ticketMapper.updateById(ticket) == 0) {
             throw new BusinessException(
                     "TICKET_CONCURRENT_MODIFICATION",
                     "工单已被其他请求修改，请刷新后重试"
             );
         }
+
+        recordOperation(
+                ticket,
+                actor,
+                TicketOperationType.STATUS_CHANGED,
+                previousStatus.name(),
+                ticket.getStatus().name()
+        );
 
         return ticketMapper.selectById(ticketId);
     }
@@ -278,6 +344,7 @@ public class TicketService {
         }
     }
 
+    @Transactional
     public Ticket assignTicket(
             CurrentActor actor,
             Long ticketId,
@@ -299,14 +366,18 @@ public class TicketService {
             );
         }
 
-        return assignTo(ticket, assignee.getId(), ticketId);
+        return assignTo(ticket, actor, assignee.getId(), TicketOperationType.ASSIGNED);
     }
 
     private Ticket assignTo(
             Ticket ticket,
+            CurrentActor actor,
             Long assigneeId,
-            Long ticketId
+            TicketOperationType operationType
     ) {
+        Long previousAssignee = ticket.getAssigneeId();
+        TicketStatus previousStatus = ticket.getStatus();
+
         ticket.setAssigneeId(assigneeId);
 
         if (ticket.getStatus() == TicketStatus.OPEN) {
@@ -322,9 +393,28 @@ public class TicketService {
             );
         }
 
-        return ticketMapper.selectById(ticketId);
+        recordOperation(
+                ticket,
+                actor,
+                operationType,
+                previousAssignee == null ? null : previousAssignee.toString(),
+                assigneeId.toString()
+        );
+
+        if (previousStatus != ticket.getStatus()) {
+            recordOperation(
+                    ticket,
+                    actor,
+                    TicketOperationType.STATUS_CHANGED,
+                    previousStatus.name(),
+                    ticket.getStatus().name()
+            );
+        }
+
+        return ticketMapper.selectById(ticket.getId());
     }
 
+    @Transactional
     public Ticket claimTicket(
             CurrentActor actor,
             Long ticketId
@@ -345,6 +435,39 @@ public class TicketService {
             );
         }
 
-        return assignTo(ticket, actor.actorId(), ticketId);
+        return assignTo(ticket, actor, actor.actorId(), TicketOperationType.CLAIMED);
+    }
+
+    private void recordOperation(
+            Ticket ticket,
+            CurrentActor actor,
+            TicketOperationType operationType,
+            String fromValue,
+            String toValue
+    ) {
+        TicketOperation operation = new TicketOperation();
+        operation.setTenantId(ticket.getTenantId());
+        operation.setTicketId(ticket.getId());
+        operation.setOperatorType(actor.actorType());
+        operation.setOperatorId(actor.actorId());
+        operation.setOperationType(operationType);
+        operation.setFromValue(fromValue);
+        operation.setToValue(toValue);
+
+        ticketOperationMapper.insert(operation);
+    }
+
+    public List<TicketOperation> listOperations(
+            CurrentActor actor,
+            Long ticketId
+    ) {
+        findTicket(actor, ticketId);
+
+        return ticketOperationMapper.selectList(
+                new LambdaQueryWrapper<TicketOperation>()
+                        .eq(TicketOperation::getTenantId, actor.tenantId())
+                        .eq(TicketOperation::getTicketId, ticketId)
+                        .orderByAsc(TicketOperation::getId)
+        );
     }
 }

@@ -4,6 +4,7 @@ import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.auth.security.CurrentActorService;
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.ticket.domain.Ticket;
+import com.example.ticketflow.ticket.domain.TicketOperation;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.*;
@@ -14,6 +15,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -130,6 +133,17 @@ public class TicketController {
 
         return ApiResponse.success(
                 ticketService.claimTicket(actor, ticketId)
+        );
+    }
+
+    @GetMapping("/{ticketId}/operations")
+    public ApiResponse<List<TicketOperation>> listOperations(
+            @PathVariable Long ticketId
+    ) {
+        CurrentActor actor = currentActorService.requireMember();
+
+        return ApiResponse.success(
+                ticketService.listOperations(actor, ticketId)
         );
     }
 
