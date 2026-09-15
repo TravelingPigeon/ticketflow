@@ -37,4 +37,30 @@ public interface MemberRoleMapper extends BaseMapper<MemberRole> {
             @Param("tenantId") Long tenantId,
             @Param("memberId") Long memberId
     );
+
+    /**
+     * 统计租户里除指定成员外，还有多少成员拥有某个权限。
+     *
+     * <p>用在"不能移除最后一个角色管理员"的校验上。</p>
+     */
+    @Select("""
+            SELECT COUNT(DISTINCT member_role.member_id)
+            FROM tf_member_role member_role
+                     JOIN tf_role role_row
+                          ON role_row.id = member_role.role_id
+                              AND role_row.tenant_id = member_role.tenant_id
+                              AND role_row.enabled = TRUE
+                     JOIN tf_role_permission role_permission
+                          ON role_permission.role_id = role_row.id
+                     JOIN tf_permission permission_row
+                          ON permission_row.id = role_permission.permission_id
+            WHERE member_role.tenant_id = #{tenantId}
+              AND member_role.member_id <> #{memberId}
+              AND permission_row.code = #{permissionCode}
+            """)
+    int countOtherMembersWithPermission(
+            @Param("tenantId") Long tenantId,
+            @Param("memberId") Long memberId,
+            @Param("permissionCode") String permissionCode
+    );
 }

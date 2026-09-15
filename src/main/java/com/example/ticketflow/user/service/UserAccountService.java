@@ -2,6 +2,7 @@ package com.example.ticketflow.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.role.service.MemberRoleService;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.user.domain.UserAccount;
@@ -18,15 +19,18 @@ public class UserAccountService {
     private final UserAccountMapper userAccountMapper;
     private final TenantMapper tenantMapper;
     private final PasswordEncoder passwordEncoder;
+    private final MemberRoleService memberRoleService;
 
     public UserAccountService(
             UserAccountMapper userAccountMapper,
             TenantMapper tenantMapper,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            MemberRoleService memberRoleService
     ) {
         this.userAccountMapper = userAccountMapper;
         this.tenantMapper = tenantMapper;
         this.passwordEncoder = passwordEncoder;
+        this.memberRoleService = memberRoleService;
     }
 
     public UserAccount createUser(
@@ -80,6 +84,14 @@ public class UserAccountService {
         user.setStatus(UserStatus.ACTIVE);
 
         userAccountMapper.insert(user);
+
+        // 关键：tf_user.role 只是过渡期的兼容列，真正决定权限的是 tf_member_role。
+        // 不写这张关联表，新建出来的成员就是一个"能登录但什么都做不了"的账号。
+        memberRoleService.grantRoleByCode(
+                tenantId,
+                user.getId(),
+                user.getRole().name()
+        );
 
         return userAccountMapper.selectById(user.getId());
     }

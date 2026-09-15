@@ -1,5 +1,8 @@
 package com.example.ticketflow.user.controller;
 
+import com.example.ticketflow.role.service.BuiltInRoles;
+import com.example.ticketflow.role.service.PermissionService;
+import com.example.ticketflow.role.service.RoleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +21,14 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,6 +43,12 @@ class UserControllerTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private RoleService roleService;
+
+    @Autowired
+    private PermissionService permissionService;
 
     @BeforeEach
     void setUp() {
@@ -67,6 +81,10 @@ class UserControllerTest {
                     (4, 2, 'admin-two', 'test-hash', 'Admin Two', 'ADMIN', 'ACTIVE'),
                     (5, 2, 'agent-one', 'test-hash', 'Agent One Of Tenant Two', 'AGENT', 'ACTIVE')
                 """);
+
+        // 新建成员时服务会去挂内置角色，所以测试租户必须像真实租户一样先有角色
+        roleService.createBuiltInRoles(1L);
+        roleService.createBuiltInRoles(2L);
     }
 
     @Test
@@ -237,6 +255,130 @@ class UserControllerTest {
                   "role": "AGENT"
                 }
                 """.formatted(username);
+    }
+
+    @Test
+    void shouldGrantAgentPermissionsToCreatedUser() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/users")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content(createBody("fresh-agent"))
+                )
+                .andExpect(status().isCreated());
+
+        // 新建出来的成员必须立刻拿到客服权限。
+        // 不写 tf_member_role 的话，他会是一个"能登录、却什么都做不了"的账号。
+        assertEquals(
+                new TreeSet<>(BuiltInRoles.AGENT_PERMISSIONS),
+                new TreeSet<>(
+                        permissionService.permissionsOf(
+                                1L,
+                                memberIdOf(1L, "fresh-agent")
+                        )
+                )
+        );
+    }
+
+    @Test
+    void shouldGrantAdminPermissionsToCreatedUser() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/users")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "username": "fresh-admin",
+                                          "password": "password123",
+                                          "displayName": "Fresh Admin",
+                                          "role": "ADMIN"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isCreated());
+
+        Set<String> permissions = permissionService.permissionsOf(
+                1L,
+                memberIdOf(1L, "fresh-admin")
+        );
+
+        assertTrue(permissions.contains("user:create"));
+        assertTrue(permissions.contains("role:manage"));
+        assertFalse(permissions.contains("ticket:claim"));
+    }
+
+    @Test
+    void shouldReplaceMemberRoles() throws Exception {
+        long targetId = memberIdOf(1L, "agent-one");
+
+        mockMvc.perform(
+                        put("/api/v1/users/" + targetId + "/roles")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "roleCodes": ["ADMIN", "AGENT"]
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        // 两个角色的权限取并集：客服有 ticket:claim，管理员有 role:manage
+        Set<String> permissions = permissionService.permissionsOf(1L, targetId);
+
+        assertTrue(permissions.contains("ticket:claim"));
+        assertTrue(permissions.contains("role:manage"));
+    }
+
+    @Test
+    void shouldRejectReplacingRolesWithoutRoleManagePermission() throws Exception {
+        long targetId = memberIdOf(1L, "agent-one");
+
+        // 客服能建账号（user:create 没有），但改别人权限需要 role:manage
+        mockMvc.perform(
+                        put("/api/v1/users/" + targetId + "/roles")
+                                .with(jwtFor("agent-one", 1, "AGENT"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "roleCodes": ["ADMIN"]
+                                        }
+                                        """)
+                )
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldRejectReplacingRolesForUnknownMember() throws Exception {
+        mockMvc.perform(
+                        put("/api/v1/users/9999/roles")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "roleCodes": ["ADMIN"]
+                                        }
+                                        """)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
+    }
+
+    private long memberIdOf(long tenantId, String username) {
+        Long id = jdbcTemplate.queryForObject(
+                """
+                        SELECT id
+                        FROM tf_user
+                        WHERE tenant_id = ?
+                          AND username = ?
+                        """,
+                Long.class,
+                tenantId,
+                username
+        );
+
+        return id == null ? -1L : id;
     }
 
     private int countUser(String username) {
