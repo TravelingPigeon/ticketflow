@@ -6,13 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.example.ticketflow.support.TestAuthorities;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.test.context.TestSecurityContextHolder;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -43,6 +42,9 @@ class UserControllerTest {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
         jdbcTemplate.update("DELETE FROM tf_customer");
+        jdbcTemplate.update("DELETE FROM tf_member_role");
+        jdbcTemplate.update("DELETE FROM tf_role_permission");
+        jdbcTemplate.update("DELETE FROM tf_role");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -68,7 +70,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldCreateUserInCurrentTenant() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -94,7 +95,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldIgnoreTenantIdSentInRequestBody() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -125,7 +125,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectAgentCreatingUser() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -155,7 +154,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectCreatingUserWithoutLoginSession() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -169,7 +167,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectUsernameExistingInSameTenant() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -182,7 +179,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldAllowUsernameUsedByAnotherTenant() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -196,7 +192,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldDefaultRoleToAgent() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -215,7 +210,6 @@ class UserControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectShortPassword() throws Exception {
         mockMvc.perform(
                         post("/api/v1/users")
@@ -296,11 +290,7 @@ class UserControllerTest {
             JwtAuthenticationToken authentication =
                     new JwtAuthenticationToken(
                             jwt,
-                            List.of(
-                                    new SimpleGrantedAuthority(
-                                            "ROLE_" + role
-                                    )
-                            ),
+                            TestAuthorities.authorities(jdbcTemplate, role),
                             username
                     );
 

@@ -13,10 +13,14 @@ import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class CurrentActorService {
@@ -63,7 +67,9 @@ public class CurrentActorService {
                 ActorType.MEMBER,
                 user.getId(),
                 user.getUsername(),
-                user.getRole()
+                permissionsOf(
+                        SecurityContextHolder.getContext().getAuthentication()
+                )
         );
     }
 
@@ -95,8 +101,22 @@ public class CurrentActorService {
                 ActorType.CUSTOMER,
                 customer.getId(),
                 customer.getEmail(),
-                null
+                Set.of()
         );
+    }
+
+    /**
+     * 从当前认证信息里取出权限编码。
+     *
+     * <p>这些权限是安全过滤器链解析令牌时从数据库查出来的（见 SecurityConfig），
+     * 这里直接复用，好处有两个：同一个请求里不用查两次库；
+     * "注解判断的权限"和"服务层判断的权限"永远一致。</p>
+     */
+    private Set<String> permissionsOf(Authentication authentication) {
+        return authentication.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private Jwt requireToken() {

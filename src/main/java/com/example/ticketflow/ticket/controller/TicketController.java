@@ -33,6 +33,7 @@ public class TicketController {
         this.currentActorService = currentActorService;
     }
 
+    @PreAuthorize("hasAuthority('ticket:create')")
     @PostMapping
     public ResponseEntity<ApiResponse<Ticket>> createTicket(
             @Valid @RequestBody CreateTicketRequest request
@@ -47,7 +48,7 @@ public class TicketController {
                 .body(ApiResponse.success(ticket));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'AGENT')")
+    @PreAuthorize("hasAuthority('ticket:update')")
     @PutMapping("/{ticketId}")
     public ApiResponse<Ticket> updateTicket(
             @PathVariable Long ticketId,
@@ -60,6 +61,7 @@ public class TicketController {
         );
     }
 
+    @PreAuthorize("hasAuthority('ticket:read')")
     @GetMapping
     public ApiResponse<Page<Ticket>> pageTickets(
             @RequestParam(defaultValue = "1") long page,
@@ -87,7 +89,7 @@ public class TicketController {
         );
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'AGENT')")
+    @PreAuthorize("hasAuthority('ticket:status')")
     @PatchMapping("/{ticketId}/status")
     public ApiResponse<Ticket> updateStatus(
             @PathVariable Long ticketId,
@@ -100,7 +102,7 @@ public class TicketController {
         );
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ticket:assign')")
     @PatchMapping("/{ticketId}/assignee")
     public ApiResponse<Ticket> assignTicket(
             @PathVariable Long ticketId,
@@ -113,6 +115,7 @@ public class TicketController {
         );
     }
 
+    @PreAuthorize("hasAuthority('ticket:read')")
     @GetMapping("/{ticketId}")
     public ApiResponse<TicketDetailResponse> findTicket(
             @PathVariable Long ticketId
@@ -124,7 +127,7 @@ public class TicketController {
         );
     }
 
-    @PreAuthorize("hasRole('AGENT')")
+    @PreAuthorize("hasAuthority('ticket:claim')")
     @PatchMapping("/{ticketId}/claim")
     public ApiResponse<Ticket> claimTicket(
             @PathVariable Long ticketId
@@ -136,6 +139,7 @@ public class TicketController {
         );
     }
 
+    @PreAuthorize("hasAuthority('ticket:read')")
     @GetMapping("/{ticketId}/operations")
     public ApiResponse<List<TicketOperation>> listOperations(
             @PathVariable Long ticketId

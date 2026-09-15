@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.role.domain.Permissions;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.ticket.domain.Ticket;
@@ -117,7 +118,7 @@ public class TicketService {
     ) {
         Ticket ticket = findTenantTicket(actor, ticketId);
 
-        requireAgentOwnsTicket(ticket, actor);
+        requireCanHandleTicket(ticket, actor);
 
         // 1. 改之前，先把旧值记下来
         String previousTitle = ticket.getTitle();
@@ -252,7 +253,7 @@ public class TicketService {
     ) {
         Ticket ticket = findTenantTicket(actor, ticketId);
 
-        requireAgentOwnsTicket(ticket, actor);
+        requireCanHandleTicket(ticket, actor);
 
         TicketStatus previousStatus = ticket.getStatus();
 
@@ -341,11 +342,15 @@ public class TicketService {
         return ticket;
     }
 
-    private void requireAgentOwnsTicket(
+    /**
+     * 数据范围校验：有 {@code ticket:handle:any} 的人可以处理本租户任意工单，
+     * 没有的人只能处理分配给自己那张。
+     */
+    private void requireCanHandleTicket(
             Ticket ticket,
             CurrentActor actor
     ) {
-        if (!actor.isAgent()) {
+        if (actor.hasPermission(Permissions.TICKET_HANDLE_ANY)) {
             return;
         }
 

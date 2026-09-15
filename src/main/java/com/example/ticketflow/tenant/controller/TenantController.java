@@ -7,6 +7,7 @@ import com.example.ticketflow.tenant.dto.CreateTenantRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,7 +25,7 @@ public class TenantController {
     }
 
 
-
+    @PreAuthorize("hasAuthority('tenant:create')")
     @PostMapping
     public ResponseEntity<ApiResponse<Tenant>> createTenant(
             @Valid @RequestBody CreateTenantRequest request

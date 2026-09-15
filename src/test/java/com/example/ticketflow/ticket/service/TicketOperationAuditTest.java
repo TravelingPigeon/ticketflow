@@ -13,6 +13,7 @@ import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.dto.UpdateTicketRequest;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.user.domain.enums.UserRole;
+import com.example.ticketflow.support.TestAuthorities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -44,6 +46,9 @@ class TicketOperationAuditTest {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
         jdbcTemplate.update("DELETE FROM tf_customer");
+        jdbcTemplate.update("DELETE FROM tf_member_role");
+        jdbcTemplate.update("DELETE FROM tf_role_permission");
+        jdbcTemplate.update("DELETE FROM tf_role");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -228,7 +233,10 @@ class TicketOperationAuditTest {
                 ActorType.MEMBER,
                 99L,
                 "admin-two",
-                UserRole.ADMIN
+                TestAuthorities.permissionCodes(
+                        jdbcTemplate,
+                        UserRole.ADMIN.name()
+                )
         );
 
         BusinessException exception = assertThrows(
@@ -434,7 +442,7 @@ class TicketOperationAuditTest {
                 ActorType.MEMBER,
                 actorId,
                 name,
-                role
+                TestAuthorities.permissionCodes(jdbcTemplate, role.name())
         );
     }
 
@@ -444,7 +452,7 @@ class TicketOperationAuditTest {
                 ActorType.CUSTOMER,
                 actorId,
                 "customer@example.com",
-                null
+                Set.of()
         );
     }
 

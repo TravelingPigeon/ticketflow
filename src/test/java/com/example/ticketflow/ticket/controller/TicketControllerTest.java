@@ -6,10 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.example.ticketflow.support.TestAuthorities;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -43,6 +42,9 @@ class TicketControllerTest {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
         jdbcTemplate.update("DELETE FROM tf_customer");
+        jdbcTemplate.update("DELETE FROM tf_member_role");
+        jdbcTemplate.update("DELETE FROM tf_role_permission");
+        jdbcTemplate.update("DELETE FROM tf_role");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -335,7 +337,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldUpdateTicketStatus() throws Exception {
         long ticketId = createTestTicket("STATUS-001", 1);
 
@@ -357,7 +358,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectInvalidStatusTransition() throws Exception {
         long ticketId = createTestTicket("STATUS-002", 1);
 
@@ -380,7 +380,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-two", roles = "AGENT")
     void shouldNotUpdateTicketFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("STATUS-003", 1);
 
@@ -402,7 +401,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldAssignTicketToAgentInSameTenant() throws Exception {
         long ticketId = createTestTicket("ASSIGN-001", 1);
 
@@ -425,7 +423,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldKeepStatusWhenAssigningNonOpenTicket() throws Exception {
         long ticketId = createTestTicket("ASSIGN-005", 1);
         setTicketStatusDirectly(ticketId, "RESOLVED");
@@ -446,7 +443,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectAssigneeFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("ASSIGN-002", 1);
 
@@ -575,11 +571,7 @@ class TicketControllerTest {
             JwtAuthenticationToken authentication =
                     new JwtAuthenticationToken(
                             jwt,
-                            List.of(
-                                    new SimpleGrantedAuthority(
-                                            "ROLE_" + role
-                                    )
-                            ),
+                            TestAuthorities.authorities(jdbcTemplate, role),
                             username
                     );
 
@@ -610,7 +602,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldFilterTicketsByStatus() throws Exception {
         long processingTicket =
                 createTestTicket("FILTER-STATUS-001", 1);
@@ -665,7 +656,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldFilterTicketsByAssignee() throws Exception {
         long assignedTicket =
                 createTestTicket("FILTER-ASSIGNEE-001", 1);
@@ -730,7 +720,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldUpdateTicketDetails() throws Exception {
         long ticketId = createTestTicket("EDIT-001", 1);
 
@@ -761,7 +750,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-two", roles = "AGENT")
     void shouldNotEditTicketFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("EDIT-002", 1);
 
@@ -868,7 +856,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldAllowAgentUpdatingOwnAssignedTicket() throws Exception {
         long ticketId = createTestTicket("WRITE-001", 1);
         assignTicketDirectly(ticketId, 1);
@@ -888,7 +875,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectAgentUpdatingUnassignedTicket() throws Exception {
         long ticketId = createTestTicket("WRITE-002", 1);
 
@@ -908,7 +894,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectAgentUpdatingTicketAssignedToAnotherAgent() throws Exception {
         long ticketId = createTestTicket("WRITE-003", 1);
         assignTicketDirectly(ticketId, 5);
@@ -928,7 +913,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectAgentAssigningTicket() throws Exception {
         long ticketId = createTestTicket("WRITE-004", 1);
 
@@ -947,7 +931,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldClaimUnassignedOpenTicket() throws Exception {
         long ticketId = createTestTicket("CLAIM-001", 1);
 
@@ -963,7 +946,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectClaimingAssignedTicket() throws Exception {
         long ticketId = createTestTicket("CLAIM-002", 1);
         assignTicketDirectly(ticketId, 5);
@@ -978,7 +960,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldNotClaimTicketFromAnotherTenant() throws Exception {
         long ticketId = createTestTicket("CLAIM-003", 2);
 
@@ -992,7 +973,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectClaimingTicketThatIsNotOpen() throws Exception {
         long ticketId = createTestTicket("CLAIM-004", 1);
         setTicketStatusDirectly(ticketId, "PROCESSING");
@@ -1007,7 +987,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectAdminClaimingTicket() throws Exception {
         long ticketId = createTestTicket("CLAIM-005", 1);
 
@@ -1032,7 +1011,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldAllowWaitingCustomerRoundTrip() throws Exception {
         long ticketId = createTestTicket("FLOW-001", 1);
 
@@ -1055,7 +1033,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldAllowReopeningResolvedTicket() throws Exception {
         long ticketId = createTestTicket("FLOW-002", 1);
         setTicketStatusDirectly(ticketId, "RESOLVED");
@@ -1076,7 +1053,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectSkippingProcessing() throws Exception {
         long ticketId = createTestTicket("FLOW-003", 1);
 
@@ -1096,7 +1072,6 @@ class TicketControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin-one", roles = "ADMIN")
     void shouldRejectReopeningClosedTicket() throws Exception {
         long ticketId = createTestTicket("FLOW-004", 1);
         setTicketStatusDirectly(ticketId, "CLOSED");

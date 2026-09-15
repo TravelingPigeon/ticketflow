@@ -6,7 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.example.ticketflow.support.TestAuthorities;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -44,6 +45,9 @@ class PortalTicketControllerTest {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
         jdbcTemplate.update("DELETE FROM tf_customer");
+        jdbcTemplate.update("DELETE FROM tf_member_role");
+        jdbcTemplate.update("DELETE FROM tf_role_permission");
+        jdbcTemplate.update("DELETE FROM tf_role");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -245,7 +249,7 @@ class PortalTicketControllerTest {
     }
 
     private RequestPostProcessor customerToken(long tenantId, long actorId) {
-        return token(tenantId, actorId, "customer@example.com", "CUSTOMER", List.of());
+        return token(tenantId, actorId, "customer@example.com", "CUSTOMER", null);
     }
 
     private RequestPostProcessor memberToken(
@@ -254,22 +258,23 @@ class PortalTicketControllerTest {
             String username,
             String role
     ) {
-        return token(
-                tenantId,
-                actorId,
-                username,
-                "MEMBER",
-                List.of(new SimpleGrantedAuthority("ROLE_" + role))
-        );
+        return token(tenantId, actorId, username, "MEMBER", role);
     }
 
+    /**
+     * @param roleCode 成员的角色编码，用来算出该挂哪些权限；客户传 null
+     */
     private RequestPostProcessor token(
             long tenantId,
             long actorId,
             String subject,
             String actorType,
-            List<SimpleGrantedAuthority> authorities
+            String roleCode
     ) {
+        List<GrantedAuthority> authorities = roleCode == null
+                ? List.of()
+                : TestAuthorities.authorities(jdbcTemplate, roleCode);
+
         return request -> {
             Jwt jwt = Jwt.withTokenValue("test-token")
                     .header("alg", "HS256")
@@ -277,13 +282,9 @@ class PortalTicketControllerTest {
                     .claim("tenantId", tenantId)
                     .claim("actorId", actorId)
                     .claim("actorType", actorType)
-                    .claim(
-                            "roles",
-                            authorities.stream()
-                                    .map(authority -> authority.getAuthority()
-                                            .replace("ROLE_", ""))
-                                    .toList()
-                    )
+                    .claim("roles", roleCode == null
+                            ? List.of()
+                            : List.of(roleCode))
                     .build();
 
             JwtAuthenticationToken authentication =

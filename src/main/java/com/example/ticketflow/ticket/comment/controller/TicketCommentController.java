@@ -7,6 +7,7 @@ import com.example.ticketflow.ticket.comment.domain.TicketComment;
 import com.example.ticketflow.ticket.comment.dto.CreateCommentRequest;
 import com.example.ticketflow.ticket.comment.service.TicketCommentService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class TicketCommentController {
         this.currentActorService = currentActorService;
     }
 
+    @PreAuthorize("hasAuthority('ticket:comment')")
     @PostMapping("/{ticketId}/comments")
     public ApiResponse<TicketComment> createComment(
             @PathVariable Long ticketId,
@@ -43,6 +45,7 @@ public class TicketCommentController {
         return ApiResponse.success(comment);
     }
 
+    @PreAuthorize("hasAuthority('ticket:read')")
     @GetMapping("/{ticketId}/comments")
     public ApiResponse<List<TicketComment>> listComments(
             @PathVariable Long ticketId

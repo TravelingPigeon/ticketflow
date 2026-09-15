@@ -6,6 +6,7 @@ import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
 import com.example.ticketflow.user.domain.enums.UserRole;
+import com.example.ticketflow.support.TestAuthorities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,9 @@ class TicketClaimConcurrencyTest {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
         jdbcTemplate.update("DELETE FROM tf_customer");
+        jdbcTemplate.update("DELETE FROM tf_member_role");
+        jdbcTemplate.update("DELETE FROM tf_role_permission");
+        jdbcTemplate.update("DELETE FROM tf_role");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -164,7 +168,10 @@ class TicketClaimConcurrencyTest {
                 ActorType.MEMBER,
                 actorId,
                 name,
-                UserRole.AGENT
+                TestAuthorities.permissionCodes(
+                        jdbcTemplate,
+                        UserRole.AGENT.name()
+                )
         );
     }
 

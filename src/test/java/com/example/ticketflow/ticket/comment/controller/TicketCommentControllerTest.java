@@ -6,13 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.example.ticketflow.support.TestAuthorities;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.test.context.TestSecurityContextHolder;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -42,6 +41,9 @@ class TicketCommentControllerTest {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
         jdbcTemplate.update("DELETE FROM tf_customer");
+        jdbcTemplate.update("DELETE FROM tf_member_role");
+        jdbcTemplate.update("DELETE FROM tf_role_permission");
+        jdbcTemplate.update("DELETE FROM tf_role");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -99,7 +101,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldCreateComment() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/1/comments")
@@ -121,7 +122,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectCommentForAnotherTenantTicket() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/2/comments")
@@ -139,7 +139,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectBlankComment() throws Exception {
         mockMvc.perform(
                         post("/api/v1/tickets/1/comments")
@@ -157,7 +156,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldListTicketCommentsInCreatedAtOrder() throws Exception {
         insertComment(1, 1, 1, 3, "Third in time, inserted first", "2026-09-01 11:00:00");
         insertComment(2, 1, 1, 1, "First in time, inserted second", "2026-09-01 09:00:00");
@@ -182,7 +180,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldReturnEmptyListWhenTicketHasNoComment() throws Exception {
         mockMvc.perform(
                         get("/api/v1/tickets/1/comments")
@@ -194,7 +191,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldOnlyListCommentsOfRequestedTicket() throws Exception {
         insertComment(1, 1, 1, 1, "Comment of ticket one", "2026-09-01 09:00:00");
         insertComment(2, 1, 3, 1, "Comment of ticket three", "2026-09-01 10:00:00");
@@ -211,7 +207,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectListingCommentsOfAnotherTenantTicket() throws Exception {
         insertComment(1, 2, 2, 2, "Comment of other tenant", "2026-09-01 09:00:00");
 
@@ -226,7 +221,6 @@ class TicketCommentControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "agent-one", roles = "AGENT")
     void shouldRejectListingCommentsWithoutLoginSession() throws Exception {
         mockMvc.perform(get("/api/v1/tickets/1/comments"))
                 .andExpect(status().isUnauthorized())
@@ -299,11 +293,7 @@ class TicketCommentControllerTest {
             JwtAuthenticationToken authentication =
                     new JwtAuthenticationToken(
                             jwt,
-                            List.of(
-                                    new SimpleGrantedAuthority(
-                                            "ROLE_" + role
-                                    )
-                            ),
+                            TestAuthorities.authorities(jdbcTemplate, role),
                             username
                     );
 

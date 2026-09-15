@@ -9,6 +9,7 @@ import com.example.ticketflow.ticket.dto.UpdateTicketRequest;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.mapper.TicketOperationMapper;
 import com.example.ticketflow.user.domain.enums.UserRole;
+import com.example.ticketflow.support.TestAuthorities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -46,6 +47,9 @@ class TicketOperationTransactionTest {
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
         jdbcTemplate.update("DELETE FROM tf_customer");
+        jdbcTemplate.update("DELETE FROM tf_member_role");
+        jdbcTemplate.update("DELETE FROM tf_role_permission");
+        jdbcTemplate.update("DELETE FROM tf_role");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -137,7 +141,10 @@ class TicketOperationTransactionTest {
                 ActorType.MEMBER,
                 4L,
                 "admin-one",
-                UserRole.ADMIN
+                TestAuthorities.permissionCodes(
+                        jdbcTemplate,
+                        UserRole.ADMIN.name()
+                )
         );
     }
 
