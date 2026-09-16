@@ -3,6 +3,7 @@ package com.example.ticketflow.ticket.service;
 import com.example.ticketflow.auth.security.ActorType;
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.TicketOperation;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
@@ -12,7 +13,6 @@ import com.example.ticketflow.ticket.dto.TicketDetailResponse;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.dto.UpdateTicketRequest;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
-import com.example.ticketflow.user.domain.enums.UserRole;
 import com.example.ticketflow.support.TestAuthorities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -82,7 +82,7 @@ class TicketOperationAuditTest {
     @Test
     void shouldRecordMemberTicketCreation() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-001"
         );
 
@@ -113,11 +113,11 @@ class TicketOperationAuditTest {
     @Test
     void shouldRecordClaimWithCascadedStatusChange() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-003"
         );
 
-        ticketService.claimTicket(member(5L, "agent-beta", UserRole.AGENT), ticketId);
+        ticketService.claimTicket(member(5L, "agent-beta", BuiltInRoles.AGENT), ticketId);
 
         Map<String, Object> claimed = lastOperation(ticketId, "CLAIMED");
 
@@ -138,18 +138,18 @@ class TicketOperationAuditTest {
     @Test
     void shouldRecordAssignmentWithPreviousAssignee() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-004"
         );
 
         ticketService.assignTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 ticketId,
                 new AssignTicketRequest(1L)
         );
 
         ticketService.assignTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 ticketId,
                 new AssignTicketRequest(5L)
         );
@@ -164,11 +164,11 @@ class TicketOperationAuditTest {
     @Test
     void shouldRecordStatusChangeWithPreviousStatus() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-005"
         );
 
-        CurrentActor admin = member(4L, "admin-one", UserRole.ADMIN);
+        CurrentActor admin = member(4L, "admin-one", BuiltInRoles.ADMIN);
 
         ticketService.updateStatus(
                 admin,
@@ -201,14 +201,14 @@ class TicketOperationAuditTest {
     @Test
     void shouldListOperationsInIdOrder() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-006"
         );
 
-        ticketService.claimTicket(member(5L, "agent-beta", UserRole.AGENT), ticketId);
+        ticketService.claimTicket(member(5L, "agent-beta", BuiltInRoles.AGENT), ticketId);
 
         List<TicketOperation> operations = ticketService.listOperations(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 ticketId
         );
 
@@ -224,7 +224,7 @@ class TicketOperationAuditTest {
     @Test
     void shouldRejectListingOperationsOfAnotherTenant() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-007"
         );
 
@@ -235,7 +235,7 @@ class TicketOperationAuditTest {
                 "admin-two",
                 TestAuthorities.permissionCodes(
                         jdbcTemplate,
-                        UserRole.ADMIN.name()
+                        BuiltInRoles.ADMIN
                 )
         );
 
@@ -253,12 +253,12 @@ class TicketOperationAuditTest {
     @Test
     void shouldRecordUpdatedWithChangedFieldNames() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-008"
         );
 
         ticketService.updateTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 ticketId,
                 new UpdateTicketRequest(
                         "新的标题",
@@ -279,11 +279,11 @@ class TicketOperationAuditTest {
     @Test
     void shouldRecordOnlyTheFieldThatActuallyChanged() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-009"
         );
 
-        CurrentActor admin = member(4L, "admin-one", UserRole.ADMIN);
+        CurrentActor admin = member(4L, "admin-one", BuiltInRoles.ADMIN);
 
         // 建单时描述是 null，这次只补描述，标题和优先级保持原样
         ticketService.updateTicket(
@@ -305,13 +305,13 @@ class TicketOperationAuditTest {
     @Test
     void shouldNotRecordUpdatedWhenNothingChanged() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-010"
         );
 
         // 原样提交：标题、描述、优先级都和当前值一致
         ticketService.updateTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 ticketId,
                 new UpdateTicketRequest(
                         "Audit test",
@@ -328,12 +328,12 @@ class TicketOperationAuditTest {
     @Test
     void shouldNotRecordStatusChangeWhenOnlyContentChanges() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-011"
         );
 
         ticketService.updateTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 ticketId,
                 new UpdateTicketRequest(
                         "只改内容",
@@ -351,7 +351,7 @@ class TicketOperationAuditTest {
     @Test
     void shouldMapAllTicketFieldsIntoDetailResponse() {
         Ticket created = ticketService.createTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 new CreateTicketRequest(
                         "AUDIT-012",
                         "映射检查",
@@ -363,12 +363,12 @@ class TicketOperationAuditTest {
         long ticketId = created.getId();
 
         ticketService.claimTicket(
-                member(5L, "agent-beta", UserRole.AGENT),
+                member(5L, "agent-beta", BuiltInRoles.AGENT),
                 ticketId
         );
 
         TicketDetailResponse detail = ticketService.findTicketDetail(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 ticketId
         );
 
@@ -389,16 +389,16 @@ class TicketOperationAuditTest {
     @Test
     void shouldReturnSameTimelineFromDetailAndOperationsLookup() {
         long ticketId = createOpenTicket(
-                member(4L, "admin-one", UserRole.ADMIN),
+                member(4L, "admin-one", BuiltInRoles.ADMIN),
                 "AUDIT-013"
         );
 
         ticketService.claimTicket(
-                member(5L, "agent-beta", UserRole.AGENT),
+                member(5L, "agent-beta", BuiltInRoles.AGENT),
                 ticketId
         );
 
-        CurrentActor admin = member(4L, "admin-one", UserRole.ADMIN);
+        CurrentActor admin = member(4L, "admin-one", BuiltInRoles.ADMIN);
 
         TicketDetailResponse detail = ticketService.findTicketDetail(
                 admin,
@@ -435,14 +435,14 @@ class TicketOperationAuditTest {
     private CurrentActor member(
             long actorId,
             String name,
-            UserRole role
+            String roleCode
     ) {
         return new CurrentActor(
                 1L,
                 ActorType.MEMBER,
                 actorId,
                 name,
-                TestAuthorities.permissionCodes(jdbcTemplate, role.name())
+                TestAuthorities.permissionCodes(jdbcTemplate, roleCode)
         );
     }
 

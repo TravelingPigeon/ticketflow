@@ -76,10 +76,10 @@ class RoleManagementTest {
         tenantId = tenantIdOf("role-mgmt");
         memberId = createMember(tenantId, "admin-one");
 
-        memberRoleService.grantRoleByCode(
+        memberRoleService.replaceMemberRoles(
                 tenantId,
                 memberId,
-                BuiltInRoles.ADMIN
+                List.of(BuiltInRoles.ADMIN)
         );
     }
 
@@ -334,10 +334,10 @@ class RoleManagementTest {
     void shouldAllowDemotingWhenAnotherRoleManagerExists() {
         long anotherAdminId = createMember(tenantId, "admin-two");
 
-        memberRoleService.grantRoleByCode(
+        memberRoleService.replaceMemberRoles(
                 tenantId,
                 anotherAdminId,
-                BuiltInRoles.ADMIN
+                List.of(BuiltInRoles.ADMIN)
         );
 
         memberRoleService.replaceMemberRoles(

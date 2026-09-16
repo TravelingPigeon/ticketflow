@@ -4,6 +4,7 @@ import com.example.ticketflow.auth.security.TokenBlacklist;
 import com.example.ticketflow.auth.security.TokenService;
 import com.example.ticketflow.auth.service.AuthService;
 import com.example.ticketflow.common.api.ApiResponse;
+import com.example.ticketflow.role.service.MemberRoleService;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.dto.LoginRequest;
 import com.example.ticketflow.user.dto.LoginResponse;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -29,16 +31,19 @@ public class AuthController {
     private final AuthService authService;
     private final TokenService tokenService;
     private final TokenBlacklist tokenBlacklist;
+    private final MemberRoleService memberRoleService;
 
     public AuthController(
             AuthService authService,
             TokenService tokenService,
-            TokenBlacklist tokenBlacklist
+            TokenBlacklist tokenBlacklist,
+            MemberRoleService memberRoleService
 
     ) {
         this.authService = authService;
         this.tokenService = tokenService;
         this.tokenBlacklist = tokenBlacklist;
+        this.memberRoleService = memberRoleService;
     }
 
     @PostMapping("/login")
@@ -49,12 +54,17 @@ public class AuthController {
 
         TokenService.TokenResult token = tokenService.issueMemberToken(user);
 
+        List<String> roles = memberRoleService.roleCodesOf(
+                user.getTenantId(),
+                user.getId()
+        );
+
         return ApiResponse.success(
                 new LoginResponse(
                         token.accessToken(),
                         token.tokenType(),
                         token.expiresInSeconds(),
-                        UserResponse.from(user)
+                        UserResponse.of(user, roles)
                 )
         );
     }

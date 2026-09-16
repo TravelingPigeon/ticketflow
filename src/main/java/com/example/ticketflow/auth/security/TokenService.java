@@ -10,7 +10,6 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -29,8 +28,7 @@ public class TokenService {
                 user.getTenantId(),
                 user.getId(),
                 user.getUsername(),
-                ActorType.MEMBER,
-                List.of(user.getRole().name())
+                ActorType.MEMBER
         );
     }
 
@@ -39,8 +37,7 @@ public class TokenService {
                 customer.getTenantId(),
                 customer.getId(),
                 customer.getEmail(),
-                ActorType.CUSTOMER,
-                List.of()
+                ActorType.CUSTOMER
         );
     }
 
@@ -48,8 +45,7 @@ public class TokenService {
             Long tenantId,
             Long actorId,
             String subject,
-            ActorType actorType,
-            List<String> roles
+            ActorType actorType
     ) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plus(properties.ttl());
@@ -62,7 +58,6 @@ public class TokenService {
                 .claim("tenantId", tenantId)
                 .claim("actorId", actorId)
                 .claim("actorType", actorType.name())
-                .claim("roles", roles)
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

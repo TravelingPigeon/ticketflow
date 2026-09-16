@@ -2,6 +2,9 @@ package com.example.ticketflow.auth.controller;
 
 import com.jayway.jsonpath.JsonPath;
 import com.example.ticketflow.auth.security.TokenBlacklist;
+import com.example.ticketflow.role.service.BuiltInRoles;
+import com.example.ticketflow.role.service.MemberRoleService;
+import com.example.ticketflow.role.service.RoleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,6 +53,12 @@ class AuthControllerTest {
 
     @Autowired
     private TokenBlacklist tokenBlacklist;
+
+    @Autowired
+    private RoleService roleService;
+
+    @Autowired
+    private MemberRoleService memberRoleService;
 
     private static final String RAW_PASSWORD = "Password123";
 
@@ -79,6 +89,14 @@ class AuthControllerTest {
                 "alice",
                 passwordEncoder.encode(RAW_PASSWORD),
                 "Alice"
+        );
+
+        // 登录响应里的 roles 来自 tf_member_role，所以测试租户要有内置角色
+        roleService.createBuiltInRoles(1L);
+        memberRoleService.replaceMemberRoles(
+                1L,
+                1L,
+                List.of(BuiltInRoles.ADMIN)
         );
     }
 
@@ -134,7 +152,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.profile.id").value(1))
                 .andExpect(jsonPath("$.data.profile.username").value("alice"))
-                .andExpect(jsonPath("$.data.profile.role").value("ADMIN"));
+                .andExpect(jsonPath("$.data.profile.roles[0]").value("ADMIN"));
     }
 
     @Test
@@ -153,10 +171,8 @@ class AuthControllerTest {
                 ((Number) jwt.getClaim("actorId")).longValue()
         );
         assertEquals("MEMBER", jwt.getClaimAsString("actorType"));
-        assertEquals(
-                List.of("ADMIN"),
-                jwt.getClaimAsStringList("roles")
-        );
+        // 令牌只携带身份，不携带角色/权限——权限在每次请求时按 actorId 查库
+        assertNull(jwt.getClaim("roles"));
         assertNotNull(jwt.getId());
         assertNotNull(jwt.getIssuedAt());
         assertNotNull(jwt.getExpiresAt());

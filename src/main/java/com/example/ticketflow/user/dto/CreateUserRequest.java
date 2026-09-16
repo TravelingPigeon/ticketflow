@@ -1,8 +1,9 @@
 package com.example.ticketflow.user.dto;
 
-import com.example.ticketflow.user.domain.enums.UserRole;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 public record CreateUserRequest(
 
@@ -18,6 +19,12 @@ public record CreateUserRequest(
         @Size(max = 128, message = "显示名称不能超过128个字符")
         String displayName,
 
-        UserRole role
+        /**
+         * 角色编码列表，可以传自定义角色的编码。
+         *
+         * <p>不传或传空数组都按 {@code AGENT} 处理——建一个"什么都不能做"的账号
+         * 几乎不会是调用方的本意，与其静默建出来，不如给一个能用的默认值。</p>
+         */
+        List<String> roleCodes
 ) {
 }

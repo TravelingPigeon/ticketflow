@@ -2,16 +2,19 @@ package com.example.ticketflow.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.role.service.MemberRoleService;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.user.domain.UserAccount;
-import com.example.ticketflow.user.domain.enums.UserRole;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.dto.CreateUserRequest;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class UserAccountService {
@@ -33,6 +36,7 @@ public class UserAccountService {
         this.memberRoleService = memberRoleService;
     }
 
+    @Transactional
     public UserAccount createUser(
             Long tenantId,
             CreateUserRequest request
@@ -75,22 +79,21 @@ public class UserAccountService {
 
         user.setPasswordHash(passwordHash);
 
-        if (request.role() == null) {
-            user.setRole(UserRole.AGENT);
-        } else {
-            user.setRole(request.role());
-        }
+        List<String> roleCodes = request.roleCodes() == null
+                || request.roleCodes().isEmpty()
+                ? List.of(BuiltInRoles.AGENT)
+                : request.roleCodes().stream().distinct().toList();
 
         user.setStatus(UserStatus.ACTIVE);
 
         userAccountMapper.insert(user);
 
-        // 关键：tf_user.role 只是过渡期的兼容列，真正决定权限的是 tf_member_role。
-        // 不写这张关联表，新建出来的成员就是一个"能登录但什么都做不了"的账号。
-        memberRoleService.grantRoleByCode(
+        // 角色关系是权限的唯一来源，建账号时必须一起建。
+        // 不建的话，这个账号能登录、却什么都做不了。
+        memberRoleService.replaceMemberRoles(
                 tenantId,
                 user.getId(),
-                user.getRole().name()
+                roleCodes
         );
 
         return userAccountMapper.selectById(user.getId());

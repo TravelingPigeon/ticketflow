@@ -104,7 +104,7 @@ class UserControllerTest {
                                           "username": "agent-new",
                                           "password": "password123",
                                           "displayName": "  New Agent  ",
-                                          "role": "AGENT"
+                                          "roleCodes": ["AGENT"]
                                         }
                                         """)
                 )
@@ -113,7 +113,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.tenantId").value(1))
                 .andExpect(jsonPath("$.data.username").value("agent-new"))
                 .andExpect(jsonPath("$.data.displayName").value("New Agent"))
-                .andExpect(jsonPath("$.data.role").value("AGENT"))
+                .andExpect(jsonPath("$.data.roles[0]").value("AGENT"))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.passwordHash").doesNotExist());
     }
@@ -130,7 +130,7 @@ class UserControllerTest {
                                           "username": "sneaky-admin",
                                           "password": "password123",
                                           "displayName": "Sneaky Admin",
-                                          "role": "ADMIN"
+                                          "roleCodes": ["ADMIN"]
                                         }
                                         """)
                 )
@@ -138,7 +138,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.tenantId").value(1));
 
         Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT tenant_id, role FROM tf_user WHERE username = ?",
+                "SELECT tenant_id FROM tf_user WHERE username = ?",
                 "sneaky-admin"
         );
 
@@ -230,7 +230,7 @@ class UserControllerTest {
                                         """)
                 )
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.role").value("AGENT"));
+                .andExpect(jsonPath("$.data.roles[0]").value("AGENT"));
     }
 
     @Test
@@ -258,9 +258,59 @@ class UserControllerTest {
                   "username": "%s",
                   "password": "password123",
                   "displayName": "Created User",
-                  "role": "AGENT"
+                  "roleCodes": ["AGENT"]
                 }
                 """.formatted(username);
+    }
+
+    @Test
+    void shouldCreateUserWithMultipleRoleCodes() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/users")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "username": "dual-role",
+                                          "password": "password123",
+                                          "displayName": "Dual Role",
+                                          "roleCodes": ["ADMIN", "AGENT"]
+                                        }
+                                        """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.roles.length()").value(2));
+
+        // 两个角色的权限取并集：管理员有 role:manage、客服有 ticket:claim
+        Set<String> permissions = permissionService.permissionsOf(
+                1L,
+                memberIdOf(1L, "dual-role")
+        );
+
+        assertTrue(permissions.contains("role:manage"));
+        assertTrue(permissions.contains("ticket:claim"));
+    }
+
+    @Test
+    void shouldRejectUnknownRoleCodeWhenCreatingUser() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/users")
+                                .with(jwtFor("admin-one", 1, "ADMIN"))
+                                .contentType(APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "username": "bad-role",
+                                          "password": "password123",
+                                          "displayName": "Bad Role",
+                                          "roleCodes": ["NOT_A_ROLE"]
+                                        }
+                                        """)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ROLE_NOT_FOUND"));
+
+        // 角色不存在要整体失败，不能留下一个没有角色的半成品账号
+        assertEquals(0, countUser("bad-role"));
     }
 
     @Test
@@ -297,7 +347,7 @@ class UserControllerTest {
                                           "username": "fresh-admin",
                                           "password": "password123",
                                           "displayName": "Fresh Admin",
-                                          "role": "ADMIN"
+                                          "roleCodes": ["ADMIN"]
                                         }
                                         """)
                 )

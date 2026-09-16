@@ -3,9 +3,9 @@ package com.example.ticketflow.ticket.service;
 import com.example.ticketflow.auth.security.ActorType;
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.mapper.TicketMapper;
-import com.example.ticketflow.user.domain.enums.UserRole;
 import com.example.ticketflow.support.TestAuthorities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -170,7 +170,7 @@ class TicketClaimConcurrencyTest {
                 name,
                 TestAuthorities.permissionCodes(
                         jdbcTemplate,
-                        UserRole.AGENT.name()
+                        BuiltInRoles.AGENT
                 )
         );
     }

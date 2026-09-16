@@ -75,4 +75,26 @@ public interface MemberRoleMapper extends BaseMapper<MemberRole> {
             @Param("tenantId") Long tenantId,
             @Param("roleId") Long roleId
     );
+
+    /**
+     * 查询某个成员挂着的角色编码。
+     *
+     * <p>只返回启用中的角色：权限计算本来就会跳过停用角色，
+     * 这里如果把它们也返回，接口会显示成"你还有这个角色"，与实际情况不符。</p>
+     */
+    @Select("""
+            SELECT DISTINCT role_row.code
+            FROM tf_member_role member_role
+                     JOIN tf_role role_row
+                          ON role_row.id = member_role.role_id
+                              AND role_row.tenant_id = member_role.tenant_id
+            WHERE member_role.tenant_id = #{tenantId}
+              AND member_role.member_id = #{memberId}
+              AND role_row.enabled = TRUE
+            ORDER BY role_row.code
+            """)
+    List<String> selectRoleCodes(
+            @Param("tenantId") Long tenantId,
+            @Param("memberId") Long memberId
+    );
 }

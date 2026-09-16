@@ -6,7 +6,6 @@ import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.role.service.RoleService;
 import com.example.ticketflow.support.InMemoryPermissionCache;
 import com.example.ticketflow.user.domain.UserAccount;
-import com.example.ticketflow.user.domain.enums.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -220,7 +219,6 @@ class RbacEndToEndTest {
         user.setId(memberId);
         user.setTenantId(tenantId);
         user.setUsername(username);
-        user.setRole(UserRole.ADMIN);
 
         return tokenService.issueMemberToken(user).accessToken();
     }

@@ -74,15 +74,15 @@ class PermissionCachingTest {
         firstMemberId = createMember(tenantId, "first");
         secondMemberId = createMember(tenantId, "second");
 
-        memberRoleService.grantRoleByCode(
+        memberRoleService.replaceMemberRoles(
                 tenantId,
                 firstMemberId,
-                BuiltInRoles.AGENT
+                List.of(BuiltInRoles.AGENT)
         );
-        memberRoleService.grantRoleByCode(
+        memberRoleService.replaceMemberRoles(
                 tenantId,
                 secondMemberId,
-                BuiltInRoles.AGENT
+                List.of(BuiltInRoles.AGENT)
         );
     }
 

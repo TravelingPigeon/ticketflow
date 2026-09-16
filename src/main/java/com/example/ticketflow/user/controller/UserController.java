@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {
@@ -45,12 +47,14 @@ public class UserController {
         UserAccount user =
                 userAccountService.createUser(actor.tenantId(), request);
 
-        UserResponse response =
-                UserResponse.from(user);
+        List<String> roles = memberRoleService.roleCodesOf(
+                actor.tenantId(),
+                user.getId()
+        );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response));
+                .body(ApiResponse.success(UserResponse.of(user, roles)));
     }
 
     @PreAuthorize("hasAuthority('role:manage')")

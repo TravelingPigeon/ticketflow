@@ -2,13 +2,13 @@ package com.example.ticketflow.ticket.service;
 
 import com.example.ticketflow.auth.security.ActorType;
 import com.example.ticketflow.auth.security.CurrentActor;
+import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.ticket.domain.TicketOperation;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.dto.UpdateTicketRequest;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.mapper.TicketOperationMapper;
-import com.example.ticketflow.user.domain.enums.UserRole;
 import com.example.ticketflow.support.TestAuthorities;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -143,7 +143,7 @@ class TicketOperationTransactionTest {
                 "admin-one",
                 TestAuthorities.permissionCodes(
                         jdbcTemplate,
-                        UserRole.ADMIN.name()
+                        BuiltInRoles.ADMIN
                 )
         );
     }

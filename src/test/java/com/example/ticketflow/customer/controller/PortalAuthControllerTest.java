@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -204,7 +205,8 @@ class PortalAuthControllerTest {
                 1L,
                 ((Number) jwt.getClaim("tenantId")).longValue()
         );
-        assertEquals(List.of(), jwt.getClaimAsStringList("roles"));
+        // 令牌只携带身份：客户既没有角色、也没有权限声明
+        assertNull(jwt.getClaim("roles"));
     }
 
     @Test

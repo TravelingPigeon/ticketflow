@@ -3,7 +3,6 @@ package com.example.ticketflow.user.domain;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.example.ticketflow.user.domain.enums.UserRole;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 
 import java.time.LocalDateTime;
@@ -21,8 +20,6 @@ public class UserAccount {
     private String passwordHash;
 
     private String displayName;
-
-    private UserRole role;
 
     private UserStatus status;
 
@@ -68,14 +65,6 @@ public class UserAccount {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
-    }
-
-    public UserRole getRole() {
-        return role;
-    }
-
-    public void setRole(UserRole role) {
-        this.role = role;
     }
 
     public UserStatus getStatus() {

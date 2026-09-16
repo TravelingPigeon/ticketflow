@@ -56,18 +56,10 @@ public class MemberRoleService {
         this.permissionCacheEvictor = permissionCacheEvictor;
     }
 
-    /** 新建成员时调用：按角色编码挂上一个角色，不替换已有角色 */
+    /** 查询某个成员挂着的角色编码，按编码排序 */
     @Transactional
-    public void grantRoleByCode(
-            Long tenantId,
-            Long memberId,
-            String roleCode
-    ) {
-        Role role = roleService.requireRoleByCode(tenantId, roleCode);
-
-        link(tenantId, memberId, role.getId());
-
-        permissionCacheEvictor.evictMember(tenantId, memberId);
+    public List<String> roleCodesOf(Long tenantId, Long memberId) {
+        return memberRoleMapper.selectRoleCodes(tenantId, memberId);
     }
 
     /** 角色管理接口：把成员的角色全量替换成给定的一组 */

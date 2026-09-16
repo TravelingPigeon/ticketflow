@@ -7,7 +7,6 @@ import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.domain.enums.UserStatus;
 import com.example.ticketflow.user.dto.LoginRequest;
-import com.example.ticketflow.user.dto.UserResponse;
 import com.example.ticketflow.user.mapper.UserAccountMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -77,8 +76,4 @@ public class AuthService {
         return user;
     }
 
-    public UserResponse login(LoginRequest request) {
-        UserAccount user = verifyCredentials(request);
-        return UserResponse.from(user);
-    }
 }
