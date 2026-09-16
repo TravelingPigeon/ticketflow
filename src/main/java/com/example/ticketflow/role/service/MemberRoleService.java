@@ -36,6 +36,7 @@ public class MemberRoleService {
     private final UserAccountMapper userAccountMapper;
     private final RoleService roleService;
     private final PermissionService permissionService;
+    private final PermissionCacheEvictor permissionCacheEvictor;
 
     public MemberRoleService(
             MemberRoleMapper memberRoleMapper,
@@ -43,7 +44,8 @@ public class MemberRoleService {
             PermissionMapper permissionMapper,
             UserAccountMapper userAccountMapper,
             RoleService roleService,
-            PermissionService permissionService
+            PermissionService permissionService,
+            PermissionCacheEvictor permissionCacheEvictor
     ) {
         this.memberRoleMapper = memberRoleMapper;
         this.rolePermissionMapper = rolePermissionMapper;
@@ -51,6 +53,7 @@ public class MemberRoleService {
         this.userAccountMapper = userAccountMapper;
         this.roleService = roleService;
         this.permissionService = permissionService;
+        this.permissionCacheEvictor = permissionCacheEvictor;
     }
 
     /** 新建成员时调用：按角色编码挂上一个角色，不替换已有角色 */
@@ -64,7 +67,7 @@ public class MemberRoleService {
 
         link(tenantId, memberId, role.getId());
 
-        // L1-4b：这里要清掉该成员的权限缓存
+        permissionCacheEvictor.evictMember(tenantId, memberId);
     }
 
     /** 角色管理接口：把成员的角色全量替换成给定的一组 */
@@ -94,7 +97,7 @@ public class MemberRoleService {
             link(tenantId, memberId, role.getId());
         }
 
-        // L1-4b：这里要清掉该成员的权限缓存
+        permissionCacheEvictor.evictMember(tenantId, memberId);
     }
 
     /**

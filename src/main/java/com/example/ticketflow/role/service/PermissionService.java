@@ -4,30 +4,42 @@ import com.example.ticketflow.role.mapper.MemberRoleMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
-import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
 public class PermissionService {
 
     private final MemberRoleMapper memberRoleMapper;
+    private final PermissionCache permissionCache;
 
-    public PermissionService(MemberRoleMapper memberRoleMapper) {
+    public PermissionService(
+            MemberRoleMapper memberRoleMapper,
+            PermissionCache permissionCache
+    ) {
         this.memberRoleMapper = memberRoleMapper;
+        this.permissionCache = permissionCache;
     }
 
     /**
      * 查询某个成员最终拥有的权限编码集合。
      *
-     * <p>成员没有角色、角色被停用、或者角色没有任何权限时，返回空集合——
-     * 空集合意味着"什么都做不了"，这是有意的失败即拒绝。</p>
+     * <p>先读缓存、未命中再查库并回填（cache-aside）。空集合同样会被缓存——
+     * "这个人什么都不能做"也是需要重复回答的问题。</p>
      */
     public Set<String> permissionsOf(Long tenantId, Long memberId) {
-        List<String> codes = memberRoleMapper.selectPermissionCodes(
-                tenantId,
-                memberId
+        Optional<Set<String>> cached = permissionCache.find(tenantId, memberId);
+
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        Set<String> permissions = new LinkedHashSet<>(
+                memberRoleMapper.selectPermissionCodes(tenantId, memberId)
         );
 
-        return new LinkedHashSet<>(codes);
+        permissionCache.put(tenantId, memberId, permissions);
+
+        return permissions;
     }
 }

@@ -3,6 +3,7 @@ package com.example.ticketflow.user.controller;
 import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.role.service.PermissionService;
 import com.example.ticketflow.role.service.RoleService;
+import com.example.ticketflow.support.InMemoryPermissionCache;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,8 +51,13 @@ class UserControllerTest {
     @Autowired
     private PermissionService permissionService;
 
+    @Autowired
+    private InMemoryPermissionCache permissionCache;
+
     @BeforeEach
     void setUp() {
+        permissionCache.clear();
+
         jdbcTemplate.update("DELETE FROM tf_ticket_operation");
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");

@@ -24,15 +24,18 @@ public class RoleService {
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
     private final RolePermissionMapper rolePermissionMapper;
+    private final PermissionCacheEvictor permissionCacheEvictor;
 
     public RoleService(
             RoleMapper roleMapper,
             PermissionMapper permissionMapper,
-            RolePermissionMapper rolePermissionMapper
+            RolePermissionMapper rolePermissionMapper,
+            PermissionCacheEvictor permissionCacheEvictor
     ) {
         this.roleMapper = roleMapper;
         this.permissionMapper = permissionMapper;
         this.rolePermissionMapper = rolePermissionMapper;
+        this.permissionCacheEvictor = permissionCacheEvictor;
     }
 
     /**
@@ -118,7 +121,8 @@ public class RoleService {
 
         replacePermissions(tenantId, role, permissionCodes);
 
-        // L1-4b：这里要清掉所有挂了该角色的成员的权限缓存
+        // 这个角色的权限变了，所有挂了它的成员缓存都要失效
+        permissionCacheEvictor.evictMembersOfRole(tenantId, roleId);
 
         return RoleResponse.of(role, permissionCodesOfRole(role.getId()));
     }

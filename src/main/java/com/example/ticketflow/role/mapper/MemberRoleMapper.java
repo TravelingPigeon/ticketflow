@@ -63,4 +63,16 @@ public interface MemberRoleMapper extends BaseMapper<MemberRole> {
             @Param("memberId") Long memberId,
             @Param("permissionCode") String permissionCode
     );
+
+    /** 查询挂了某个角色的全部成员 ID */
+    @Select("""
+            SELECT DISTINCT member_id
+            FROM tf_member_role
+            WHERE tenant_id = #{tenantId}
+              AND role_id = #{roleId}
+            """)
+    List<Long> selectMemberIdsByRoleId(
+            @Param("tenantId") Long tenantId,
+            @Param("roleId") Long roleId
+    );
 }

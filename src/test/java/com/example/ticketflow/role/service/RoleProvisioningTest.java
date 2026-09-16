@@ -1,5 +1,6 @@
 package com.example.ticketflow.role.service;
 
+import com.example.ticketflow.support.InMemoryPermissionCache;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.role.domain.Role;
 import com.example.ticketflow.role.mapper.RoleMapper;
@@ -36,8 +37,15 @@ class RoleProvisioningTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private InMemoryPermissionCache permissionCache;
+
     @BeforeEach
     void setUp() {
+        // 每个用例都会把表清空再插回同一批 ID，缓存必须跟着清，
+        // 否则上一个用例缓存的权限会被下一个用例读到
+        permissionCache.clear();
+
         jdbcTemplate.update("DELETE FROM tf_ticket_operation");
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
@@ -114,6 +122,10 @@ class RoleProvisioningTest {
 
         assignRole(tenantId, memberId, BuiltInRoles.ADMIN);
 
+        // 这里直接改库模拟"外部变更"：缓存不会自动失效，只能手动清。
+        // 缓存本身的失效行为由 PermissionCachingTest 覆盖，这个用例只关心权限并集。
+        permissionCache.clear();
+
         Set<String> union = permissionService.permissionsOf(tenantId, memberId);
 
         // 管理员缺 ticket:claim、客服有，并集正好覆盖整个字典；
@@ -140,6 +152,9 @@ class RoleProvisioningTest {
                 tenantId,
                 BuiltInRoles.ADMIN
         );
+
+        // 同上：直接改库，缓存要手动清
+        permissionCache.clear();
 
         // 整租户停用管理员角色后，成员立刻变成"什么都做不了"
         assertTrue(permissionService.permissionsOf(tenantId, memberId).isEmpty());

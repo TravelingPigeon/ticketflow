@@ -7,6 +7,7 @@ import com.example.ticketflow.role.dto.RoleResponse;
 import com.example.ticketflow.role.mapper.RoleMapper;
 import com.example.ticketflow.tenant.dto.CreateTenantRequest;
 import com.example.ticketflow.tenant.service.TenantService;
+import com.example.ticketflow.support.InMemoryPermissionCache;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,12 +47,18 @@ class RoleManagementTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private InMemoryPermissionCache permissionCache;
+
     private long tenantId;
 
     private long memberId;
 
     @BeforeEach
     void setUp() {
+        // 清库之前先清缓存：同一个 JVM 里多个用例会复用同一批 ID
+        permissionCache.clear();
+
         jdbcTemplate.update("DELETE FROM tf_ticket_operation");
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");

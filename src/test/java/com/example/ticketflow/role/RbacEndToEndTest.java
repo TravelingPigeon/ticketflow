@@ -1,8 +1,10 @@
 package com.example.ticketflow.role;
 
 import com.example.ticketflow.auth.security.TokenService;
+import com.example.ticketflow.role.dto.RoleResponse;
 import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.role.service.RoleService;
+import com.example.ticketflow.support.InMemoryPermissionCache;
 import com.example.ticketflow.user.domain.UserAccount;
 import com.example.ticketflow.user.domain.enums.UserRole;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,9 +16,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -43,6 +51,9 @@ class RbacEndToEndTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private InMemoryPermissionCache permissionCache;
+
     private long tenantId;
 
     private long memberId;
@@ -51,6 +62,8 @@ class RbacEndToEndTest {
 
     @BeforeEach
     void setUp() {
+        permissionCache.clear();
+
         jdbcTemplate.update("DELETE FROM tf_ticket_operation");
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
@@ -134,7 +147,15 @@ class RbacEndToEndTest {
     }
 
     @Test
-    void shouldApplyRevokedPermissionWithoutReissuingToken() throws Exception {
+    void shouldApplyPermissionChangeWithoutReissuingToken() throws Exception {
+        RoleResponse adminRole = roleService.listRoles(tenantId)
+                .stream()
+                .filter(role -> BuiltInRoles.ADMIN.equals(role.code()))
+                .findFirst()
+                .orElseThrow();
+
+        List<String> granted = new ArrayList<>(adminRole.permissions());
+
         // 同一个令牌，改权限之前可以访问
         mockMvc.perform(
                         get("/api/v1/tickets")
@@ -142,9 +163,15 @@ class RbacEndToEndTest {
                 )
                 .andExpect(status().isOk());
 
-        revoke("ticket:read");
+        // 走接口摘掉 ticket:read：接口会在事务提交后清掉相关成员的缓存，所以立刻生效
+        replaceRolePermissions(
+                adminRole.id(),
+                granted.stream()
+                        .filter(code -> !"ticket:read".equals(code))
+                        .toList()
+        );
 
-        // 令牌没变、没重新登录，只改了数据库里的角色权限，立刻就该被拦住
+        // 令牌没变、没重新登录，权限变更立刻生效
         mockMvc.perform(
                         get("/api/v1/tickets")
                                 .header("Authorization", bearer())
@@ -152,9 +179,9 @@ class RbacEndToEndTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-        grant("ticket:read");
+        replaceRolePermissions(adminRole.id(), granted);
 
-        // 恢复权限后同一个令牌又能用了，说明每次请求都在重新读权限
+        // 恢复权限后同一个令牌又能用了
         mockMvc.perform(
                         get("/api/v1/tickets")
                                 .header("Authorization", bearer())
@@ -228,38 +255,26 @@ class RbacEndToEndTest {
         );
     }
 
-    private void revoke(String permissionCode) {
-        jdbcTemplate.update(
-                """
-                        DELETE FROM tf_role_permission
-                        WHERE role_id = (
-                            SELECT id FROM tf_role
-                            WHERE tenant_id = ? AND code = 'ADMIN'
-                        )
-                          AND permission_id = (
-                            SELECT id FROM tf_permission WHERE code = ?
-                        )
-                        """,
-                tenantId,
-                permissionCode
-        );
+    private void replaceRolePermissions(
+            long roleId,
+            List<String> permissionCodes
+    ) throws Exception {
+        mockMvc.perform(
+                        put("/api/v1/roles/" + roleId + "/permissions")
+                                .header("Authorization", bearer())
+                                .contentType(APPLICATION_JSON)
+                                .content(permissionsBody(permissionCodes))
+                )
+                .andExpect(status().isOk());
     }
 
-    private void grant(String permissionCode) {
-        jdbcTemplate.update(
-                """
-                        INSERT INTO tf_role_permission
-                            (tenant_id, role_id, permission_id)
-                        SELECT ?, id, (
-                            SELECT id FROM tf_permission WHERE code = ?
-                        )
-                        FROM tf_role
-                        WHERE tenant_id = ?
-                          AND code = 'ADMIN'
-                        """,
-                tenantId,
-                permissionCode,
-                tenantId
-        );
+    private String permissionsBody(List<String> permissionCodes) {
+        return permissionCodes.stream()
+                .map(code -> "\"" + code + "\"")
+                .collect(Collectors.joining(
+                        ",",
+                        "{\"permissions\":[",
+                        "]}"
+                ));
     }
 }
