@@ -58,9 +58,9 @@ class PortalTicketControllerTest {
 
         jdbcTemplate.update("""
                 INSERT INTO tf_user
-                    (id, tenant_id, username, password_hash, display_name, role, status)
+                    (id, tenant_id, username, password_hash, display_name, status)
                 VALUES
-                    (1, 1, 'agent-one', 'test-hash', 'Agent One', 'AGENT', 'ACTIVE')
+                    (1, 1, 'agent-one', 'test-hash', 'Agent One', 'ACTIVE')
                 """);
 
         jdbcTemplate.update("""

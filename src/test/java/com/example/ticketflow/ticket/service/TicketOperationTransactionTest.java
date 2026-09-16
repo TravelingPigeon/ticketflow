@@ -60,9 +60,9 @@ class TicketOperationTransactionTest {
 
         jdbcTemplate.update("""
                 INSERT INTO tf_user
-                    (id, tenant_id, username, password_hash, display_name, role, status)
+                    (id, tenant_id, username, password_hash, display_name, status)
                 VALUES
-                    (4, 1, 'admin-one', 'test-hash', 'Admin One', 'ADMIN', 'ACTIVE')
+                    (4, 1, 'admin-one', 'test-hash', 'Admin One', 'ACTIVE')
                 """);
 
         jdbcTemplate.update("""

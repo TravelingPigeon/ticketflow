@@ -69,11 +69,11 @@ class RoleControllerTest {
         jdbcTemplate.update(
                 """
                         INSERT INTO tf_user
-                            (id, tenant_id, username, password_hash, display_name, role, status)
+                            (id, tenant_id, username, password_hash, display_name, status)
                         VALUES
-                            (1, 1, 'admin-one', 'test-hash', 'Admin One', 'ADMIN', 'ACTIVE'),
-                            (2, 1, 'agent-one', 'test-hash', 'Agent One', 'AGENT', 'ACTIVE'),
-                            (4, 2, 'admin-two', 'test-hash', 'Admin Two', 'ADMIN', 'ACTIVE')
+                            (1, 1, 'admin-one', 'test-hash', 'Admin One', 'ACTIVE'),
+                            (2, 1, 'agent-one', 'test-hash', 'Agent One', 'ACTIVE'),
+                            (4, 2, 'admin-two', 'test-hash', 'Admin Two', 'ACTIVE')
                         """
         );
 

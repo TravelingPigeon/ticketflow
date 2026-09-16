@@ -59,30 +59,30 @@ class TicketControllerTest {
 
         jdbcTemplate.update("""
         INSERT INTO tf_user
-            (id, tenant_id, username, password_hash, display_name, role, status)
+            (id, tenant_id, username, password_hash, display_name, status)
         VALUES
-            (1, 1, 'agent-one', 'test-hash', 'Agent One', 'AGENT', 'ACTIVE')
+            (1, 1, 'agent-one', 'test-hash', 'Agent One', 'ACTIVE')
         """);
 
         jdbcTemplate.update("""
         INSERT INTO tf_user
-            (id, tenant_id, username, password_hash, display_name, role, status)
+            (id, tenant_id, username, password_hash, display_name, status)
         VALUES
-            (2, 2, 'agent-two', 'test-hash', 'Agent Two', 'AGENT', 'ACTIVE')
+            (2, 2, 'agent-two', 'test-hash', 'Agent Two', 'ACTIVE')
         """);
 
         jdbcTemplate.update("""
         INSERT INTO tf_user
-            (id, tenant_id, username, password_hash, display_name, role, status)
+            (id, tenant_id, username, password_hash, display_name, status)
         VALUES
-            (4, 1, 'admin-one', 'test-hash', 'Admin One', 'ADMIN', 'ACTIVE')
+            (4, 1, 'admin-one', 'test-hash', 'Admin One', 'ACTIVE')
         """);
 
         jdbcTemplate.update("""
         INSERT INTO tf_user
-            (id, tenant_id, username, password_hash, display_name, role, status)
+            (id, tenant_id, username, password_hash, display_name, status)
         VALUES
-            (5, 1, 'agent-beta', 'test-hash', 'Agent Beta', 'AGENT', 'ACTIVE')
+            (5, 1, 'agent-beta', 'test-hash', 'Agent Beta', 'ACTIVE')
         """);
     }
 

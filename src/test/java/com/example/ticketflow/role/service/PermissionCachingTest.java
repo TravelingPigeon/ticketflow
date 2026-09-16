@@ -212,8 +212,8 @@ class PermissionCachingTest {
         jdbcTemplate.update(
                 """
                         INSERT INTO tf_user
-                            (tenant_id, username, password_hash, display_name, role, status)
-                        VALUES (?, ?, 'test-hash', ?, 'AGENT', 'ACTIVE')
+                            (tenant_id, username, password_hash, display_name, status)
+                        VALUES (?, ?, 'test-hash', ?, 'ACTIVE')
                         """,
                 tenantId,
                 username,

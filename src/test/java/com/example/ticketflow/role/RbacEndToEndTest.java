@@ -91,8 +91,8 @@ class RbacEndToEndTest {
         jdbcTemplate.update(
                 """
                         INSERT INTO tf_user
-                            (tenant_id, username, password_hash, display_name, role, status)
-                        VALUES (?, 'e2e-admin', 'test-hash', 'E2E Admin', 'ADMIN', 'ACTIVE')
+                            (tenant_id, username, password_hash, display_name, status)
+                        VALUES (?, 'e2e-admin', 'test-hash', 'E2E Admin', 'ACTIVE')
                         """,
                 tenantId
         );

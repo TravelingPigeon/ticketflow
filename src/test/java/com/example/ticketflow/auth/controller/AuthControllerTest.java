@@ -82,8 +82,8 @@ class AuthControllerTest {
         jdbcTemplate.update(
                 """
                         INSERT INTO tf_user
-                            (id, tenant_id, username, password_hash, display_name, role, status)
-                        VALUES (?, 1, ?, ?, ?, 'ADMIN', 'ACTIVE')
+                            (id, tenant_id, username, password_hash, display_name, status)
+                        VALUES (?, 1, ?, ?, ?, 'ACTIVE')
                         """,
                 1L,
                 "alice",

@@ -62,10 +62,10 @@ class TicketClaimConcurrencyTest {
 
         jdbcTemplate.update("""
                 INSERT INTO tf_user
-                    (id, tenant_id, username, password_hash, display_name, role, status)
+                    (id, tenant_id, username, password_hash, display_name, status)
                 VALUES
-                    (1, 1, 'agent-one', 'test-hash', 'Agent One', 'AGENT', 'ACTIVE'),
-                    (5, 1, 'agent-beta', 'test-hash', 'Agent Beta', 'AGENT', 'ACTIVE')
+                    (1, 1, 'agent-one', 'test-hash', 'Agent One', 'ACTIVE'),
+                    (5, 1, 'agent-beta', 'test-hash', 'Agent Beta', 'ACTIVE')
                 """);
     }
 
