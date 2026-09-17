@@ -49,6 +49,7 @@ class RoleControllerTest {
         jdbcTemplate.update("DELETE FROM tf_member_role");
         jdbcTemplate.update("DELETE FROM tf_role_permission");
         jdbcTemplate.update("DELETE FROM tf_role");
+        jdbcTemplate.update("DELETE FROM tf_sla_policy");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -91,7 +92,7 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].code").value("ADMIN"))
                 .andExpect(jsonPath("$.data[0].builtIn").value(true))
-                .andExpect(jsonPath("$.data[0].permissions.length()").value(10))
+                .andExpect(jsonPath("$.data[0].permissions.length()").value(11))
                 .andExpect(jsonPath("$.data[1].code").value("AGENT"))
                 .andExpect(jsonPath("$.data[1].permissions.length()").value(6));
     }
@@ -226,7 +227,7 @@ class RoleControllerTest {
                                 .with(memberToken("admin-one", 1L, "ADMIN"))
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(11))
+                .andExpect(jsonPath("$.data.length()").value(12))
                 .andExpect(jsonPath("$.data[?(@.code == 'ticket:handle:any')]")
                         .exists());
     }

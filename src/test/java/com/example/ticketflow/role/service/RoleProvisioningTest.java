@@ -53,6 +53,7 @@ class RoleProvisioningTest {
         jdbcTemplate.update("DELETE FROM tf_member_role");
         jdbcTemplate.update("DELETE FROM tf_role_permission");
         jdbcTemplate.update("DELETE FROM tf_role");
+        jdbcTemplate.update("DELETE FROM tf_sla_policy");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
     }
@@ -61,7 +62,7 @@ class RoleProvisioningTest {
     void shouldKnowEveryPermissionInDictionary() {
         // 权限字典是整个 RBAC 的地基：下面所有断言都基于它算出来的期望值。
         // 新增权限时这个数字要跟着改，改的时候正好会提醒你检查内置角色的默认授权。
-        assertEquals(11, allPermissionCodes().size());
+        assertEquals(12, allPermissionCodes().size());
         assertTrue(allPermissionCodes().contains("ticket:handle:any"));
         assertTrue(allPermissionCodes().contains("role:manage"));
     }
@@ -100,6 +101,17 @@ class RoleProvisioningTest {
         assertEquals(
                 expectedAdmin,
                 permissionsOfRole(tenantId, BuiltInRoles.ADMIN)
+        );
+
+        // 后加的权限也要落在正确的角色上：SLA 配置归管理员，客服不该有。
+        // 上面那条"管理员 = 字典全量 - 排除项"是推导出来的，这条是显式钉住策略意图。
+        assertTrue(
+                permissionsOfRole(tenantId, BuiltInRoles.ADMIN)
+                        .contains("sla:manage")
+        );
+        assertFalse(
+                permissionsOfRole(tenantId, BuiltInRoles.AGENT)
+                        .contains("sla:manage")
         );
 
         // 领取是客服的自助动作，管理员不该有

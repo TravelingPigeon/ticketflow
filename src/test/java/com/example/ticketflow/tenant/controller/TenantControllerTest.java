@@ -44,6 +44,7 @@ class TenantControllerTest {
         jdbcTemplate.update("DELETE FROM tf_member_role");
         jdbcTemplate.update("DELETE FROM tf_role_permission");
         jdbcTemplate.update("DELETE FROM tf_role");
+        jdbcTemplate.update("DELETE FROM tf_sla_policy");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
     }
@@ -77,7 +78,7 @@ class TenantControllerTest {
                 countRows("SELECT COUNT(*) FROM tf_role WHERE tenant_id = ?", tenantId)
         );
         assertEquals(
-                16,
+                17,
                 countRows(
                         "SELECT COUNT(*) FROM tf_role_permission WHERE tenant_id = ?",
                         tenantId
@@ -91,6 +92,14 @@ class TenantControllerTest {
                 1,
                 countRows(
                         "SELECT COUNT(*) FROM tf_member_role WHERE tenant_id = ?",
+                        tenantId
+                )
+        );
+        // SLA 默认规则也是注册的一部分：少一条，那个优先级的工单就算不出截止时间
+        assertEquals(
+                4,
+                countRows(
+                        "SELECT COUNT(*) FROM tf_sla_policy WHERE tenant_id = ?",
                         tenantId
                 )
         );

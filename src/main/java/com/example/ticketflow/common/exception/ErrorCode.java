@@ -23,6 +23,7 @@ public enum ErrorCode {
     INVALID_PAGE(HttpStatus.BAD_REQUEST),
     INVALID_PAGE_SIZE(HttpStatus.BAD_REQUEST),
     DEMO_ERROR(HttpStatus.BAD_REQUEST),
+    INVALID_SLA_POLICY(HttpStatus.BAD_REQUEST),
 
     // ---- 401：没通过认证 ----
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED),

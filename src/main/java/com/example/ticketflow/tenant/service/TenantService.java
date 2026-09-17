@@ -6,6 +6,7 @@ import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.role.service.MemberRoleService;
 import com.example.ticketflow.role.service.RoleService;
+import com.example.ticketflow.sla.service.SlaPolicyService;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.dto.CreateTenantRequest;
 import com.example.ticketflow.tenant.dto.RegisterTenantRequest;
@@ -27,17 +28,20 @@ public class TenantService {
     private final RoleService roleService;
     private final UserAccountService userAccountService;
     private final MemberRoleService memberRoleService;
+    private final SlaPolicyService slaPolicyService;
 
     public TenantService(
             TenantMapper tenantMapper,
             RoleService roleService,
             UserAccountService userAccountService,
-            MemberRoleService memberRoleService
+            MemberRoleService memberRoleService,
+            SlaPolicyService slaPolicyService
     ) {
         this.tenantMapper = tenantMapper;
         this.roleService = roleService;
         this.userAccountService = userAccountService;
         this.memberRoleService = memberRoleService;
+        this.slaPolicyService = slaPolicyService;
     }
 
     @Transactional
@@ -63,6 +67,8 @@ public class TenantService {
 
         // 新租户必须自带两个内置角色，否则这个租户里的用户一个权限都没有
         roleService.createBuiltInRoles(tenant.getId());
+
+        slaPolicyService.createDefaultPolicies(tenant.getId());
 
         return tenant;
     }

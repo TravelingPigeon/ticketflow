@@ -66,6 +66,7 @@ class RoleManagementTest {
         jdbcTemplate.update("DELETE FROM tf_member_role");
         jdbcTemplate.update("DELETE FROM tf_role_permission");
         jdbcTemplate.update("DELETE FROM tf_role");
+        jdbcTemplate.update("DELETE FROM tf_sla_policy");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 
@@ -93,7 +94,7 @@ class RoleManagementTest {
         RoleResponse agent = roleOf(roles, BuiltInRoles.AGENT);
 
         assertTrue(admin.builtIn());
-        assertEquals(10, admin.permissions().size());
+        assertEquals(11, admin.permissions().size());
         assertTrue(admin.permissions().contains("ticket:assign"));
         assertFalse(admin.permissions().contains("ticket:claim"));
 
@@ -253,7 +254,7 @@ class RoleManagementTest {
         assertTrue(permissions.contains("role:manage"));
         assertTrue(permissions.contains("ticket:claim"));
         // 管理员缺 ticket:claim、客服缺 ticket:handle:any，并集正好覆盖整个字典
-        assertEquals(11, permissions.size());
+        assertEquals(12, permissions.size());
     }
 
     @Test

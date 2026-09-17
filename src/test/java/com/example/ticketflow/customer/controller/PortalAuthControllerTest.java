@@ -51,6 +51,7 @@ class PortalAuthControllerTest {
         jdbcTemplate.update("DELETE FROM tf_member_role");
         jdbcTemplate.update("DELETE FROM tf_role_permission");
         jdbcTemplate.update("DELETE FROM tf_role");
+        jdbcTemplate.update("DELETE FROM tf_sla_policy");
         jdbcTemplate.update("DELETE FROM tf_user");
         jdbcTemplate.update("DELETE FROM tf_tenant");
 

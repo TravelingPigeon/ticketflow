@@ -1,6 +1,7 @@
 package com.example.ticketflow.common.exception;
 
 import com.example.ticketflow.common.api.ApiResponse;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -8,6 +9,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -42,6 +44,31 @@ public class GlobalExceptionHandler {
                 .stream()
                 .findFirst()
                 .map(error -> error.getDefaultMessage())
+                .orElse("请求参数不合法");
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.failure("VALIDATION_ERROR", message));
+    }
+
+    /**
+     * 方法级参数校验失败。
+     *
+     * <p>和 {@link MethodArgumentNotValidException} 的区别：后者是"请求体对象里的字段"校验失败，
+     * 前者是"方法参数上的约束"失败，最常见的场景就是 {@code List<@Valid Dto>} 这种
+     * <b>容器元素</b>校验——数组里某一项不合法时抛的就是它。</p>
+     *
+     * <p>没有这个处理器时它会掉进兜底分支返回 500，把一个明确的参数错误伪装成服务端故障。</p>
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodValidationException(
+            HandlerMethodValidationException exception
+    ) {
+        String message = exception.getParameterValidationResults()
+                .stream()
+                .flatMap(result -> result.getResolvableErrors().stream())
+                .map(MessageSourceResolvable::getDefaultMessage)
+                .findFirst()
                 .orElse("请求参数不合法");
 
         return ResponseEntity
