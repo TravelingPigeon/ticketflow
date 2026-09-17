@@ -158,7 +158,7 @@ class RoleControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("INVALID_PERMISSION"));
     }
 
@@ -207,7 +207,7 @@ class RoleControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ROLE_NOT_FOUND"));
 
         // 租户 2 的管理员改不动租户 1 的角色

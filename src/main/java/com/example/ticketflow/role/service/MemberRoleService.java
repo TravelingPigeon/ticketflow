@@ -2,6 +2,7 @@ package com.example.ticketflow.role.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.role.domain.MemberRole;
 import com.example.ticketflow.role.domain.Permission;
 import com.example.ticketflow.role.domain.Role;
@@ -124,7 +125,7 @@ public class MemberRoleService {
 
         if (others == 0) {
             throw new BusinessException(
-                    "LAST_ROLE_MANAGER",
+                    ErrorCode.LAST_ROLE_MANAGER,
                     "不能移除最后一个拥有角色管理权限的成员的角色"
             );
         }
@@ -170,7 +171,7 @@ public class MemberRoleService {
         );
 
         if (member == null) {
-            throw new BusinessException("MEMBER_NOT_FOUND", "成员不存在");
+            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND, "成员不存在");
         }
     }
 

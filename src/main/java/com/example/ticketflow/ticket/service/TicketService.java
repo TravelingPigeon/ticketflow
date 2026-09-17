@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.role.domain.Permissions;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
@@ -57,7 +58,7 @@ public class TicketService {
 
         if (tenant == null) {
             throw new BusinessException(
-                    "TENANT_NOT_FOUND",
+                    ErrorCode.TENANT_NOT_FOUND,
                     "租户不存在"
             );
         }
@@ -70,7 +71,7 @@ public class TicketService {
 
         if (existingTicket != null) {
             throw new BusinessException(
-                    "TICKET_NO_EXISTS",
+                    ErrorCode.TICKET_NO_EXISTS,
                     "当前租户下工单编号已存在"
             );
         }
@@ -133,7 +134,7 @@ public class TicketService {
         // 3. 落库（乐观锁：版本号对不上时返回 0）
         if (ticketMapper.updateById(ticket) == 0) {
             throw new BusinessException(
-                    "TICKET_CONCURRENT_MODIFICATION",
+                    ErrorCode.TICKET_CONCURRENT_MODIFICATION,
                     "工单已被其他请求修改，请刷新后重试"
             );
         }
@@ -192,21 +193,21 @@ public class TicketService {
 
         if (tenant == null) {
             throw new BusinessException(
-                    "TENANT_NOT_FOUND",
+                    ErrorCode.TENANT_NOT_FOUND,
                     "租户不存在"
             );
         }
 
         if (current < 1) {
             throw new BusinessException(
-                    "INVALID_PAGE",
+                    ErrorCode.INVALID_PAGE,
                     "页码必须大于等于1"
             );
         }
 
         if (size < 1 || size > 100) {
             throw new BusinessException(
-                    "INVALID_PAGE_SIZE",
+                    ErrorCode.INVALID_PAGE_SIZE,
                     "每页数量必须在1到100之间"
             );
         }
@@ -259,7 +260,7 @@ public class TicketService {
 
         if (!previousStatus.canTransitionTo(request.status())) {
             throw new BusinessException(
-                    "INVALID_STATUS_TRANSITION",
+                    ErrorCode.INVALID_STATUS_TRANSITION,
                     "当前状态不允许变更为目标状态"
             );
         }
@@ -268,7 +269,7 @@ public class TicketService {
 
         if (ticketMapper.updateById(ticket) == 0) {
             throw new BusinessException(
-                    "TICKET_CONCURRENT_MODIFICATION",
+                    ErrorCode.TICKET_CONCURRENT_MODIFICATION,
                     "工单已被其他请求修改，请刷新后重试"
             );
         }
@@ -302,7 +303,7 @@ public class TicketService {
 
         if (ticket == null) {
             throw new BusinessException(
-                    "TICKET_NOT_FOUND",
+                    ErrorCode.TICKET_NOT_FOUND,
                     "工单不存在"
             );
         }
@@ -334,7 +335,7 @@ public class TicketService {
 
         if (ticket == null) {
             throw new BusinessException(
-                    "TICKET_NOT_FOUND",
+                    ErrorCode.TICKET_NOT_FOUND,
                     "工单不存在"
             );
         }
@@ -378,7 +379,7 @@ public class TicketService {
 
         if (assignee == null) {
             throw new BusinessException(
-                    "ASSIGNEE_NOT_FOUND",
+                    ErrorCode.ASSIGNEE_NOT_FOUND,
                     "处理人不存在或不属于当前租户"
             );
         }
@@ -405,7 +406,7 @@ public class TicketService {
 
         if (updatedRows == 0) {
             throw new BusinessException(
-                    "TICKET_CONCURRENT_MODIFICATION",
+                    ErrorCode.TICKET_CONCURRENT_MODIFICATION,
                     "工单已被其他请求修改，请刷新后重试"
             );
         }
@@ -440,14 +441,14 @@ public class TicketService {
 
         if (ticket.getAssigneeId() != null) {
             throw new BusinessException(
-                    "TICKET_ALREADY_ASSIGNED",
+                    ErrorCode.TICKET_ALREADY_ASSIGNED,
                     "工单已被领取或分配"
             );
         }
 
         if (ticket.getStatus() != TicketStatus.OPEN) {
             throw new BusinessException(
-                    "INVALID_STATUS_TRANSITION",
+                    ErrorCode.INVALID_STATUS_TRANSITION,
                     "只有待处理的工单可以被领取"
             );
         }

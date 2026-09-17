@@ -147,7 +147,7 @@ class TicketControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TENANT_NOT_FOUND"));
     }
@@ -175,7 +175,7 @@ class TicketControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TICKET_NO_EXISTS"));
     }
@@ -234,7 +234,7 @@ class TicketControllerTest {
                                 .param("page", "1")
                                 .param("size", "10")
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TENANT_NOT_FOUND"));
     }
@@ -263,7 +263,7 @@ class TicketControllerTest {
                         get("/api/v1/tickets/" + ticketId)
                                 .with(jwtFor("agent-two", 2, "AGENT"))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));
@@ -373,7 +373,7 @@ class TicketControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code")
                         .value("INVALID_STATUS_TRANSITION"));
@@ -395,7 +395,7 @@ class TicketControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(updateBody)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));
     }
@@ -458,7 +458,7 @@ class TicketControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code")
                         .value("ASSIGNEE_NOT_FOUND"));
     }
@@ -767,7 +767,7 @@ class TicketControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));
     }
@@ -954,7 +954,7 @@ class TicketControllerTest {
                         patch("/api/v1/tickets/" + ticketId + "/claim")
                                 .with(jwtFor("agent-one", 1, "AGENT"))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_ALREADY_ASSIGNED"));
     }
@@ -967,7 +967,7 @@ class TicketControllerTest {
                         patch("/api/v1/tickets/" + ticketId + "/claim")
                                 .with(jwtFor("agent-one", 1, "AGENT"))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));
     }
@@ -981,7 +981,7 @@ class TicketControllerTest {
                         patch("/api/v1/tickets/" + ticketId + "/claim")
                                 .with(jwtFor("agent-one", 1, "AGENT"))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code")
                         .value("INVALID_STATUS_TRANSITION"));
     }
@@ -1066,7 +1066,7 @@ class TicketControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code")
                         .value("INVALID_STATUS_TRANSITION"));
     }
@@ -1086,7 +1086,7 @@ class TicketControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code")
                         .value("INVALID_STATUS_TRANSITION"));
     }

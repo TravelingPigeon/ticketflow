@@ -94,7 +94,7 @@ class TenantControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(requestBody)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TENANT_CODE_EXISTS"));
     }

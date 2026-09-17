@@ -133,7 +133,7 @@ class TicketCommentControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));
     }
@@ -214,7 +214,7 @@ class TicketCommentControllerTest {
                         get("/api/v1/tickets/2/comments")
                                 .with(jwtFor("agent-one", 1, "AGENT"))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));

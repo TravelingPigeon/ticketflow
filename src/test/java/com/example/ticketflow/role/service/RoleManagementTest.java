@@ -307,7 +307,8 @@ class RoleManagementTest {
                 )
         );
 
-        assertEquals("ROLE_NOT_FOUND", exception.getCode());
+        // 角色编码出现在请求体里，不是路径参数，所以是"引用不存在"而不是"资源不存在"
+        assertEquals("INVALID_ROLE_CODE", exception.getCode());
     }
 
     @Test

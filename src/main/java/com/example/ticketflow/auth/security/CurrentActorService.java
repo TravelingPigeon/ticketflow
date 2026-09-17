@@ -2,6 +2,7 @@ package com.example.ticketflow.auth.security;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.common.exception.UnauthenticatedException;
 import com.example.ticketflow.customer.domain.Customer;
 import com.example.ticketflow.customer.domain.enums.CustomerStatus;
@@ -130,7 +131,7 @@ public class CurrentActorService {
 
         if (tenant == null) {
             throw new BusinessException(
-                    "TENANT_NOT_FOUND",
+                    ErrorCode.TENANT_NOT_FOUND,
                     "租户不存在"
             );
         }

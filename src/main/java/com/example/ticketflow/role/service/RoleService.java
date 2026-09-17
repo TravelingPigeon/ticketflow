@@ -2,6 +2,7 @@ package com.example.ticketflow.role.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.role.domain.Permission;
 import com.example.ticketflow.role.domain.Role;
 import com.example.ticketflow.role.domain.RolePermission;
@@ -93,7 +94,7 @@ public class RoleService {
 
         if (findRoleByCode(tenantId, code) != null) {
             throw new BusinessException(
-                    "ROLE_CODE_EXISTS",
+                    ErrorCode.ROLE_CODE_EXISTS,
                     "当前租户下角色编码已存在"
             );
         }
@@ -132,8 +133,8 @@ public class RoleService {
 
         if (role == null) {
             throw new BusinessException(
-                    "ROLE_NOT_FOUND",
-                    "角色不存在：" + roleCode
+                    ErrorCode.INVALID_ROLE_CODE,
+                    "角色编码不存在：" + roleCode
             );
         }
 
@@ -156,7 +157,7 @@ public class RoleService {
         );
 
         if (role == null) {
-            throw new BusinessException("ROLE_NOT_FOUND", "角色不存在");
+            throw new BusinessException(ErrorCode.ROLE_NOT_FOUND, "角色不存在");
         }
 
         return role;
@@ -223,7 +224,7 @@ public class RoleService {
                     .toList();
 
             throw new BusinessException(
-                    "INVALID_PERMISSION",
+                    ErrorCode.INVALID_PERMISSION,
                     "权限编码不存在：" + String.join("、", unknown)
             );
         }

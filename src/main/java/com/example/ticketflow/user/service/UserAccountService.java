@@ -2,6 +2,7 @@ package com.example.ticketflow.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.role.service.BuiltInRoles;
 import com.example.ticketflow.role.service.MemberRoleService;
 import com.example.ticketflow.tenant.domain.Tenant;
@@ -45,7 +46,7 @@ public class UserAccountService {
 
         if (tenant == null) {
             throw new BusinessException(
-                    "TENANT_NOT_FOUND",
+                    ErrorCode.TENANT_NOT_FOUND,
                     "租户不存在"
             );
         }
@@ -64,7 +65,7 @@ public class UserAccountService {
 
         if (existingUser != null) {
             throw new BusinessException(
-                    "USERNAME_EXISTS",
+                    ErrorCode.USERNAME_EXISTS,
                     "当前租户下用户名已存在"
             );
         }

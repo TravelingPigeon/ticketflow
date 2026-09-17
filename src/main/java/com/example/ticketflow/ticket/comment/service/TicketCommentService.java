@@ -3,6 +3,7 @@ package com.example.ticketflow.ticket.comment.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.ticket.comment.domain.TicketComment;
 import com.example.ticketflow.ticket.comment.dto.CreateCommentRequest;
 import com.example.ticketflow.ticket.comment.mapper.TicketCommentMapper;
@@ -75,7 +76,7 @@ public class TicketCommentService {
 
         if (ticket == null) {
             throw new BusinessException(
-                    "TICKET_NOT_FOUND",
+                    ErrorCode.TICKET_NOT_FOUND,
                     "工单不存在"
             );
         }

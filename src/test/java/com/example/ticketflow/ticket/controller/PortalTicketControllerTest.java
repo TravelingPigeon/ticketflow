@@ -128,7 +128,7 @@ class PortalTicketControllerTest {
                         get("/api/v1/portal/tickets/" + ticketId)
                                 .with(customerToken(1L, 1L))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code")
                         .value("TICKET_NOT_FOUND"));
     }

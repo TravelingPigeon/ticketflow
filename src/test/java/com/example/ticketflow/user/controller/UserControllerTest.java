@@ -198,7 +198,7 @@ class UserControllerTest {
                                 .contentType(APPLICATION_JSON)
                                 .content(createBody("agent-one"))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("USERNAME_EXISTS"));
     }
 
@@ -306,8 +306,8 @@ class UserControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("ROLE_NOT_FOUND"));
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("INVALID_ROLE_CODE"));
 
         // 角色不存在要整体失败，不能留下一个没有角色的半成品账号
         assertEquals(0, countUser("bad-role"));
@@ -417,7 +417,7 @@ class UserControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 

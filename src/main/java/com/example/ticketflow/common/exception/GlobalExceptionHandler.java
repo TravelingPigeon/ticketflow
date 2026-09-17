@@ -13,9 +13,17 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
-        ApiResponse<Void> response = ApiResponse.failure(exception.getCode(), exception.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(
+            BusinessException exception
+    ) {
+        ApiResponse<Void> response = ApiResponse.failure(
+                exception.getCode(),
+                exception.getMessage()
+        );
+
+        return ResponseEntity
+                .status(exception.getErrorCode().status())
+                .body(response);
     }
 
     @ExceptionHandler(Exception.class)

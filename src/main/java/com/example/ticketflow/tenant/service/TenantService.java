@@ -2,6 +2,7 @@ package com.example.ticketflow.tenant.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.role.service.RoleService;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.dto.CreateTenantRequest;
@@ -32,7 +33,7 @@ public class TenantService {
 
         if (existing != null) {
             throw new BusinessException(
-                    "TENANT_CODE_EXISTS",
+                    ErrorCode.TENANT_CODE_EXISTS,
                     "租户编码已存在"
             );
         }

@@ -97,7 +97,7 @@ class PortalAuthControllerTest {
                                         "Alice"
                                 ))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("TENANT_NOT_FOUND"));
     }
 
@@ -114,7 +114,7 @@ class PortalAuthControllerTest {
                                         "Alice"
                                 ))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code")
                         .value("CUSTOMER_EMAIL_EXISTS"));
     }
@@ -132,7 +132,7 @@ class PortalAuthControllerTest {
                                         "Alice"
                                 ))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code")
                         .value("CUSTOMER_EMAIL_EXISTS"));
     }
@@ -222,7 +222,7 @@ class PortalAuthControllerTest {
                                         "WrongPassword"
                                 ))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code")
                         .value("INVALID_CREDENTIALS"));
     }
@@ -238,7 +238,7 @@ class PortalAuthControllerTest {
                                         "Password123"
                                 ))
                 )
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code")
                         .value("INVALID_CREDENTIALS"));
     }

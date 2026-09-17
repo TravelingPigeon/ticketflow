@@ -2,6 +2,7 @@ package com.example.ticketflow.customer.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.customer.domain.Customer;
 import com.example.ticketflow.customer.domain.enums.CustomerStatus;
 import com.example.ticketflow.customer.dto.CustomerLoginRequest;
@@ -39,7 +40,7 @@ public class CustomerService {
 
         if (existing != null) {
             throw new BusinessException(
-                    "CUSTOMER_EMAIL_EXISTS",
+                    ErrorCode.CUSTOMER_EMAIL_EXISTS,
                     "该邮箱已在本租户注册"
             );
         }
@@ -66,14 +67,14 @@ public class CustomerService {
 
         if (customer == null) {
             throw new BusinessException(
-                    "INVALID_CREDENTIALS",
+                    ErrorCode.INVALID_CREDENTIALS,
                     "邮箱或密码错误"
             );
         }
 
         if (customer.getStatus() == CustomerStatus.LOCKED) {
             throw new BusinessException(
-                    "CUSTOMER_LOCKED",
+                    ErrorCode.CUSTOMER_LOCKED,
                     "账号已被锁定"
             );
         }
@@ -85,7 +86,7 @@ public class CustomerService {
 
         if (!passwordMatches) {
             throw new BusinessException(
-                    "INVALID_CREDENTIALS",
+                    ErrorCode.INVALID_CREDENTIALS,
                     "邮箱或密码错误"
             );
         }
@@ -101,7 +102,7 @@ public class CustomerService {
 
         if (tenant == null) {
             throw new BusinessException(
-                    "TENANT_NOT_FOUND",
+                    ErrorCode.TENANT_NOT_FOUND,
                     "租户不存在"
             );
         }

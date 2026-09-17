@@ -2,6 +2,7 @@ package com.example.ticketflow.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.user.domain.UserAccount;
@@ -36,7 +37,7 @@ public class AuthService {
 
         if (tenant == null) {
             throw new BusinessException(
-                    "INVALID_CREDENTIALS",
+                    ErrorCode.INVALID_CREDENTIALS,
                     "租户、用户名或密码错误"
             );
         }
@@ -49,14 +50,14 @@ public class AuthService {
 
         if (user == null) {
             throw new BusinessException(
-                    "INVALID_CREDENTIALS",
+                    ErrorCode.INVALID_CREDENTIALS,
                     "租户、用户名或密码错误"
             );
         }
 
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new BusinessException(
-                    "USER_LOCKED",
+                    ErrorCode.USER_LOCKED,
                     "用户已被锁定"
             );
         }
@@ -68,7 +69,7 @@ public class AuthService {
 
         if (!passwordMatches) {
             throw new BusinessException(
-                    "INVALID_CREDENTIALS",
+                    ErrorCode.INVALID_CREDENTIALS,
                     "用户名或密码错误"
             );
         }

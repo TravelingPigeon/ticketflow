@@ -2,6 +2,7 @@ package com.example.ticketflow.controller;
 
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.common.exception.ErrorCode;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +23,6 @@ public class PingController {
      */
     @GetMapping("/ping/error")
     public ApiResponse<Void> errorDemo() {
-        throw new BusinessException("DEMO_ERROR", "这是一个错误示例");
+        throw new BusinessException(ErrorCode.DEMO_ERROR, "这是一个错误示例");
     }
 }
