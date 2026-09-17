@@ -120,8 +120,8 @@ class PermissionAnnotationTest {
     /**
      * 工作台 = {@code /api/v1/**} 里排除门户、认证和健康检查之后的部分。
      *
-     * <p>门户走 {@code requireCustomer()}，认证接口本身是开放的，
-     * 三者都不参与角色权限体系。</p>
+     * <p>门户走 {@code requireCustomer()}，认证接口和租户注册本身就是公开的，
+     * 这些都不参与角色权限体系。</p>
      */
     private boolean isWorkbenchEndpoint(String pattern) {
         if (!pattern.startsWith("/api/v1/")) {
@@ -130,6 +130,8 @@ class PermissionAnnotationTest {
 
         return !(pattern.startsWith("/api/v1/portal/")
                 || pattern.startsWith("/api/v1/auth/")
-                || pattern.startsWith("/api/v1/ping"));
+                || pattern.startsWith("/api/v1/ping")
+                // 租户注册必须匿名可调，否则第一个管理员永远建不出来
+                || pattern.startsWith("/api/v1/tenants/register"));
     }
 }

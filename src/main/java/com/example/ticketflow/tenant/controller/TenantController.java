@@ -2,6 +2,8 @@ package com.example.ticketflow.tenant.controller;
 
 import com.example.ticketflow.common.api.ApiResponse;
 import com.example.ticketflow.tenant.domain.Tenant;
+import com.example.ticketflow.tenant.dto.RegisterTenantRequest;
+import com.example.ticketflow.tenant.dto.TenantRegistrationResponse;
 import com.example.ticketflow.tenant.service.TenantService;
 import com.example.ticketflow.tenant.dto.CreateTenantRequest;
 import jakarta.validation.Valid;
@@ -25,17 +27,14 @@ public class TenantController {
     }
 
 
-    @PreAuthorize("hasAuthority('tenant:create')")
-    @PostMapping
-    public ResponseEntity<ApiResponse<Tenant>> createTenant(
-            @Valid @RequestBody CreateTenantRequest request
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<TenantRegistrationResponse>> register(
+            @Valid @RequestBody RegisterTenantRequest request
     ) {
-        Tenant tenant = tenantService.createTenant(request);
+        TenantRegistrationResponse response = tenantService.register(request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(tenant));
+                .body(ApiResponse.success(response));
     }
-
-
 }

@@ -37,6 +37,7 @@ public enum ErrorCode {
     TICKET_NOT_FOUND(HttpStatus.NOT_FOUND),
     ROLE_NOT_FOUND(HttpStatus.NOT_FOUND),
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND),
+    ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND),
 
     // ---- 409：与当前数据状态冲突（唯一键、状态机、并发）----
     TENANT_CODE_EXISTS(HttpStatus.CONFLICT),
@@ -50,9 +51,9 @@ public enum ErrorCode {
     LAST_ROLE_MANAGER(HttpStatus.CONFLICT),
 
     // ---- 422：请求体里引用的对象不存在 ----
-    ASSIGNEE_NOT_FOUND(HttpStatus.UNPROCESSABLE_ENTITY),
-    INVALID_PERMISSION(HttpStatus.UNPROCESSABLE_ENTITY),
-    INVALID_ROLE_CODE(HttpStatus.UNPROCESSABLE_ENTITY);
+    ASSIGNEE_NOT_FOUND(HttpStatus.UNPROCESSABLE_CONTENT),
+    INVALID_PERMISSION(HttpStatus.UNPROCESSABLE_CONTENT),
+    INVALID_ROLE_CODE(HttpStatus.UNPROCESSABLE_CONTENT);
 
     private final HttpStatus status;
 

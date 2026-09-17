@@ -6,28 +6,28 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.security.test.context.TestSecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-import com.example.ticketflow.support.TestAuthorities;
-
-import java.util.List;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 租户自助注册接口。
+ *
+ * <p>这个接口**不需要认证**（否则第一个管理员永远建不出来），所以这里没有令牌相关的用例。
+ * "匿名真的能调通、注册出来的管理员真的能用"由 {@link TenantRegistrationEndToEndTest}
+ * 走完整安全过滤器链覆盖。</p>
+ */
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc(addFilters = false)
 class TenantControllerTest {
+
+    private static final String TENANT_CODE = "signup-tenant";
 
     @Autowired
     private MockMvc mockMvc;
@@ -49,161 +49,142 @@ class TenantControllerTest {
     }
 
     @Test
-    void shouldCreateTenant() throws Exception {
-        String requestBody = """
-                {
-                  "code": "auto-test",
-                  "name": "自动化测试团队"
-                }
-                """;
-
+    void shouldRegisterTenantWithBuiltInRolesAndFirstAdmin() throws Exception {
         mockMvc.perform(
-                        post("/api/v1/tenants")
-                                .with(memberToken("ADMIN"))
+                        post("/api/v1/tenants/register")
                                 .contentType(APPLICATION_JSON)
-                                .content(requestBody)
+                                .content(registerBody(TENANT_CODE))
                 )
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.code").value("OK"))
-                .andExpect(jsonPath("$.data.code").value("auto-test"))
-                .andExpect(jsonPath("$.data.name").value("自动化测试团队"))
-                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.data.tenant.code").value(TENANT_CODE))
+                .andExpect(jsonPath("$.data.tenant.name").value("注册测试公司"))
+                .andExpect(jsonPath("$.data.tenant.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.admin.username").value("owner"))
+                .andExpect(jsonPath("$.data.admin.displayName").value("Owner"))
+                .andExpect(jsonPath("$.data.admin.roles[0]").value("ADMIN"));
+
+        long tenantId = tenantIdOf(TENANT_CODE);
+
+        // 四件事必须一起落库，缺任何一件这个租户都是残废的：
+        // 没有角色 → 里面的人拿不到权限；没有管理员 → 谁也进不去
+        assertEquals(
+                1,
+                countRows("SELECT COUNT(*) FROM tf_tenant WHERE id = ?", tenantId)
+        );
+        assertEquals(
+                2,
+                countRows("SELECT COUNT(*) FROM tf_role WHERE tenant_id = ?", tenantId)
+        );
+        assertEquals(
+                16,
+                countRows(
+                        "SELECT COUNT(*) FROM tf_role_permission WHERE tenant_id = ?",
+                        tenantId
+                )
+        );
+        assertEquals(
+                1,
+                countRows("SELECT COUNT(*) FROM tf_user WHERE tenant_id = ?", tenantId)
+        );
+        assertEquals(
+                1,
+                countRows(
+                        "SELECT COUNT(*) FROM tf_member_role WHERE tenant_id = ?",
+                        tenantId
+                )
+        );
     }
 
     @Test
-    void shouldRejectDuplicateTenantCode() throws Exception {
-        String requestBody = """
-                {
-                  "code": "duplicate-test",
-                  "name": "重复编码测试"
-                }
-                """;
-
+    void shouldRejectDuplicateTenantCodeWithoutSideEffects() throws Exception {
         mockMvc.perform(
-                        post("/api/v1/tenants")
-                                .with(memberToken("ADMIN"))
+                        post("/api/v1/tenants/register")
                                 .contentType(APPLICATION_JSON)
-                                .content(requestBody)
+                                .content(registerBody(TENANT_CODE))
                 )
                 .andExpect(status().isCreated());
 
         mockMvc.perform(
-                        post("/api/v1/tenants")
-                                .with(memberToken("ADMIN"))
+                        post("/api/v1/tenants/register")
                                 .contentType(APPLICATION_JSON)
-                                .content(requestBody)
+                                .content(registerBody(TENANT_CODE))
                 )
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("TENANT_CODE_EXISTS"));
+
+        // 失败之后不能多出任何东西：多一个租户、多一个用户都是脏数据
+        assertEquals(1, countRows("SELECT COUNT(*) FROM tf_tenant"));
+        assertEquals(1, countRows("SELECT COUNT(*) FROM tf_user"));
+        assertEquals(2, countRows("SELECT COUNT(*) FROM tf_role"));
     }
 
     @Test
-    void shouldRejectBlankRequest() throws Exception {
-        String requestBody = """
-                {
-                  "code": "",
-                  "name": ""
-                }
-                """;
-
+    void shouldRejectTenantCodeWithInvalidFormat() throws Exception {
+        // 大写字母加空格：这个编码会出现在登录请求里，必须是稳定的 slug 形式
         mockMvc.perform(
-                        post("/api/v1/tenants")
-                                .with(memberToken("ADMIN"))
+                        post("/api/v1/tenants/register")
                                 .contentType(APPLICATION_JSON)
-                                .content(requestBody)
+                                .content(registerBody("Demo Team"))
                 )
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        assertEquals(0, countRows("SELECT COUNT(*) FROM tf_tenant"));
     }
 
     @Test
-    void shouldRejectCustomerCreatingTenant() throws Exception {
-        String requestBody = """
-                {
-                  "code": "customer-created",
-                  "name": "客户建的租户"
-                }
-                """;
-
-        // 建租户接口过去没有权限注解，客户令牌也能调用；补上 tenant:create 之后必须被拦住
+    void shouldRejectTooShortAdminPassword() throws Exception {
         mockMvc.perform(
-                        post("/api/v1/tenants")
-                                .with(customerToken())
+                        post("/api/v1/tenants/register")
                                 .contentType(APPLICATION_JSON)
-                                .content(requestBody)
+                                .content("""
+                                        {
+                                          "tenantCode": "short-pwd",
+                                          "tenantName": "密码太短的租户",
+                                          "adminUsername": "owner",
+                                          "adminPassword": "short",
+                                          "adminDisplayName": "Owner"
+                                        }
+                                        """)
                 )
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        // 参数校验发生在进服务层之前，所以一行数据都不该写进去
+        assertEquals(0, countRows("SELECT COUNT(*) FROM tf_tenant"));
+        assertEquals(0, countRows("SELECT COUNT(*) FROM tf_user"));
     }
 
-    @Test
-    void shouldRejectAnonymousCreatingTenant() throws Exception {
-        String requestBody = """
+    private String registerBody(String tenantCode) {
+        return """
                 {
-                  "code": "anonymous-created",
-                  "name": "匿名建的租户"
+                  "tenantCode": "%s",
+                  "tenantName": "注册测试公司",
+                  "adminUsername": "owner",
+                  "adminPassword": "Password123",
+                  "adminDisplayName": "Owner"
                 }
-                """;
-
-        mockMvc.perform(
-                        post("/api/v1/tenants")
-                                .contentType(APPLICATION_JSON)
-                                .content(requestBody)
-                )
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+                """.formatted(tenantCode);
     }
 
-    private RequestPostProcessor memberToken(String role) {
-        return request -> {
-            Jwt jwt = Jwt.withTokenValue("test-token")
-                    .header("alg", "HS256")
-                    .subject("admin-one")
-                    .claim("tenantId", 1L)
-                    .claim("actorId", 4L)
-                    .claim("actorType", "MEMBER")
-                    .claim("roles", List.of(role))
-                    .build();
+    private long tenantIdOf(String code) {
+        Long id = jdbcTemplate.queryForObject(
+                "SELECT id FROM tf_tenant WHERE code = ?",
+                Long.class,
+                code
+        );
 
-            JwtAuthenticationToken authentication =
-                    new JwtAuthenticationToken(
-                            jwt,
-                            TestAuthorities.authorities(jdbcTemplate, role),
-                            "admin-one"
-                    );
-
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(authentication);
-
-            TestSecurityContextHolder.setContext(context);
-
-            return request;
-        };
+        return id == null ? -1L : id;
     }
 
-    private RequestPostProcessor customerToken() {
-        return request -> {
-            Jwt jwt = Jwt.withTokenValue("test-token")
-                    .header("alg", "HS256")
-                    .subject("customer@example.com")
-                    .claim("tenantId", 1L)
-                    .claim("actorId", 1L)
-                    .claim("actorType", "CUSTOMER")
-                    .claim("roles", List.of())
-                    .build();
+    private int countRows(String sql, Object... args) {
+        Integer count = jdbcTemplate.queryForObject(
+                sql,
+                Integer.class,
+                args
+        );
 
-            JwtAuthenticationToken authentication =
-                    new JwtAuthenticationToken(jwt, List.of(), "customer@example.com");
-
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(authentication);
-
-            TestSecurityContextHolder.setContext(context);
-
-            return request;
-        };
+        return count == null ? 0 : count;
     }
 }

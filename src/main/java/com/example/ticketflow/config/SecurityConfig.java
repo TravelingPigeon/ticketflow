@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/portal/auth/register",
                                 "/api/v1/portal/auth/login",
+                                "/api/v1/tenants/register",
                                 "/actuator/health"
                         ).permitAll()
                         .anyRequest().authenticated()
