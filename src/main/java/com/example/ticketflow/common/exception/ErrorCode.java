@@ -32,6 +32,7 @@ public enum ErrorCode {
     // ---- 403：认证过了但被拒绝 ----
     USER_LOCKED(HttpStatus.FORBIDDEN),
     CUSTOMER_LOCKED(HttpStatus.FORBIDDEN),
+    FORBIDDEN(HttpStatus.FORBIDDEN),
 
     // ---- 404：要操作的对象不存在 ----
     TENANT_NOT_FOUND(HttpStatus.NOT_FOUND),
@@ -54,7 +55,10 @@ public enum ErrorCode {
     // ---- 422：请求体里引用的对象不存在 ----
     ASSIGNEE_NOT_FOUND(HttpStatus.UNPROCESSABLE_CONTENT),
     INVALID_PERMISSION(HttpStatus.UNPROCESSABLE_CONTENT),
-    INVALID_ROLE_CODE(HttpStatus.UNPROCESSABLE_CONTENT);
+    INVALID_ROLE_CODE(HttpStatus.UNPROCESSABLE_CONTENT),
+
+    // ---- 500：没有预料到的失败 ----
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final HttpStatus status;
 

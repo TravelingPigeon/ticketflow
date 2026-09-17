@@ -8,6 +8,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,5 +42,17 @@ class GlobalExceptionHandlerTest {
         // 显式断言"不是 5xx"：这才是这个缺陷真正的症状
         mockMvc.perform(get("/api/v1/also-missing"))
                 .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void shouldReturnBadRequestForUnreadableRequestBody() throws Exception {
+        // JSON 语法错误是客户端的问题，不该记在服务端故障账上
+        mockMvc.perform(
+                        post("/api/v1/tenants/register")
+                                .contentType(APPLICATION_JSON)
+                                .content("{\"tenantCode\": ")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 }
