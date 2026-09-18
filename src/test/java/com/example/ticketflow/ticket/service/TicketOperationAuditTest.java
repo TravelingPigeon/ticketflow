@@ -14,6 +14,7 @@ import com.example.ticketflow.ticket.dto.UpdateTicketStatusRequest;
 import com.example.ticketflow.ticket.dto.UpdateTicketRequest;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.support.TestAuthorities;
+import com.example.ticketflow.sla.service.SlaPolicyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,9 @@ class TicketOperationAuditTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private SlaPolicyService slaPolicyService;
 
     @BeforeEach
     void setUp() {
@@ -78,6 +82,10 @@ class TicketOperationAuditTest {
                 VALUES
                     (1, 1, 'customer@example.com', 'test-hash', 'Customer', 'ACTIVE')
                 """);
+
+        // 建单要用 SLA 规则
+        slaPolicyService.createDefaultPolicies(1L);
+        slaPolicyService.createDefaultPolicies(2L);
     }
 
     @Test

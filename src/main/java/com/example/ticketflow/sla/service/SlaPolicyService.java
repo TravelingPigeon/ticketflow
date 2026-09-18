@@ -125,6 +125,29 @@ public class SlaPolicyService {
         }
     }
 
+    /**
+     * 取某个租户某个优先级的规则；没有就报错。
+     *
+     * <p>建工单时调用。规则缺失**不能"用某个默认值糊过去"**——那样这个工单的 SLA 会
+     * 凭空正确，而管理员根本不知道自己的配置漏了（docs/06 §14 就是这么定的）。</p>
+     */
+    public SlaPolicy requirePolicy(Long tenantId, TicketPriority priority) {
+        SlaPolicy policy = slaPolicyMapper.selectOne(
+                new LambdaQueryWrapper<SlaPolicy>()
+                        .eq(SlaPolicy::getTenantId, tenantId)
+                        .eq(SlaPolicy::getPriority, priority)
+        );
+
+        if (policy == null) {
+            throw new BusinessException(
+                    ErrorCode.SLA_POLICY_NOT_FOUND,
+                    "当前租户没有配置 " + priority + " 优先级的 SLA 规则"
+            );
+        }
+
+        return policy;
+    }
+
     private void insert(
             Long tenantId,
             TicketPriority priority,

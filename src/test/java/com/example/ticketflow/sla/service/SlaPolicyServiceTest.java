@@ -1,6 +1,7 @@
 package com.example.ticketflow.sla.service;
 
 import com.example.ticketflow.common.exception.BusinessException;
+import com.example.ticketflow.sla.domain.SlaPolicy;
 import com.example.ticketflow.sla.dto.SlaPolicyRequest;
 import com.example.ticketflow.sla.dto.SlaPolicyResponse;
 import com.example.ticketflow.tenant.dto.CreateTenantRequest;
@@ -211,6 +212,43 @@ class SlaPolicyServiceTest {
                 slaPolicyService.listPolicies(otherTenantId).get(0)
                         .firstResponseMinutes()
         );
+    }
+
+    @Test
+    void shouldReturnPolicyForConfiguredPriority() {
+        SlaPolicy policy = slaPolicyService.requirePolicy(
+                tenantId,
+                TicketPriority.HIGH
+        );
+
+        assertEquals(TicketPriority.HIGH, policy.getPriority());
+        assertEquals(60, policy.getFirstResponseMinutes());
+        assertEquals(480, policy.getResolutionMinutes());
+        assertEquals(tenantId, policy.getTenantId());
+    }
+
+    @Test
+    void shouldRejectMissingPolicy() {
+        jdbcTemplate.update(
+                """
+                        DELETE FROM tf_sla_policy
+                        WHERE tenant_id = ?
+                          AND priority = 'URGENT'
+                        """,
+                tenantId
+        );
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> slaPolicyService.requirePolicy(
+                        tenantId,
+                        TicketPriority.URGENT
+                )
+        );
+
+        assertEquals("SLA_POLICY_NOT_FOUND", exception.getCode());
+        // 报错要说清是哪个优先级没配，管理员才知道去补哪一条
+        assertTrue(exception.getMessage().contains("URGENT"));
     }
 
     private SlaPolicyResponse policyOf(TicketPriority priority) {

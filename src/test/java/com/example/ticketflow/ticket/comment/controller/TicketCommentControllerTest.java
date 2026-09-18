@@ -81,23 +81,29 @@ class TicketCommentControllerTest {
 
         jdbcTemplate.update("""
                 INSERT INTO tf_ticket
-                    (id, tenant_id, ticket_no, title, status, priority, created_by)
+                (id, tenant_id, ticket_no, title, status, priority, created_by,
+                 first_response_due_at, resolution_due_at)
                 VALUES
-                    (1, 1, 'COMMENT-001', 'Comment ticket', 'OPEN', 'MEDIUM', 1)
+                (1, 1, 'COMMENT-001', 'Comment ticket', 'OPEN', 'MEDIUM', 1,
+                 CURRENT_TIMESTAMP, DATEADD('HOUR', 8, CURRENT_TIMESTAMP))
                 """);
 
         jdbcTemplate.update("""
                 INSERT INTO tf_ticket
-                    (id, tenant_id, ticket_no, title, status, priority, created_by)
+                (id, tenant_id, ticket_no, title, status, priority, created_by,
+                 first_response_due_at, resolution_due_at)
                 VALUES
-                    (2, 2, 'COMMENT-002', 'Other tenant ticket', 'OPEN', 'MEDIUM', 2)
+                (2, 2, 'COMMENT-002', 'Other tenant ticket', 'OPEN', 'MEDIUM', 2,
+                 CURRENT_TIMESTAMP, DATEADD('HOUR', 8, CURRENT_TIMESTAMP))
                 """);
 
         jdbcTemplate.update("""
                 INSERT INTO tf_ticket
-                    (id, tenant_id, ticket_no, title, status, priority, created_by)
+                (id, tenant_id, ticket_no, title, status, priority, created_by,
+                 first_response_due_at, resolution_due_at)
                 VALUES
-                    (3, 1, 'COMMENT-003', 'Second ticket of tenant one', 'OPEN', 'MEDIUM', 3)
+                (3, 1, 'COMMENT-003', 'Second ticket of tenant one', 'OPEN', 'MEDIUM', 3,
+                 CURRENT_TIMESTAMP, DATEADD('HOUR', 8, CURRENT_TIMESTAMP))
                 """);
     }
 

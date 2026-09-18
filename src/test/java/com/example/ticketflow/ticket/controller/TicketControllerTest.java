@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import com.example.ticketflow.support.TestAuthorities;
+import com.example.ticketflow.sla.service.SlaPolicyService;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -35,6 +36,9 @@ class TicketControllerTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private SlaPolicyService slaPolicyService;
 
     @BeforeEach
     void setUp() {
@@ -85,6 +89,10 @@ class TicketControllerTest {
         VALUES
             (5, 1, 'agent-beta', 'test-hash', 'Agent Beta', 'ACTIVE')
         """);
+
+        // 建单时要用 SLA 规则算截止时间，所以测试租户得像真实租户一样先有规则
+        slaPolicyService.createDefaultPolicies(1L);
+        slaPolicyService.createDefaultPolicies(2L);
     }
 
     @Test
@@ -253,7 +261,12 @@ class TicketControllerTest {
                 .andExpect(jsonPath("$.data.id").value((int) ticketId))
                 .andExpect(jsonPath("$.data.tenantId").value(1))
                 .andExpect(jsonPath("$.data.ticketNo")
-                        .value("DETAIL-001"));
+                        .value("DETAIL-001"))
+                // 建单时按 SLA 规则快照出来的截止时间，详情响应里要带上
+                .andExpect(jsonPath("$.data.firstResponseDueAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.resolutionDueAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.responseSlaStatus").value("NORMAL"))
+                .andExpect(jsonPath("$.data.resolutionSlaStatus").value("NORMAL"));
     }
 
     @Test

@@ -68,9 +68,11 @@ class TicketOperationTransactionTest {
 
         jdbcTemplate.update("""
                 INSERT INTO tf_ticket
-                    (id, tenant_id, ticket_no, title, status, priority, version)
+                (id, tenant_id, ticket_no, title, status, priority, version,
+                 first_response_due_at, resolution_due_at)
                 VALUES
-                    (1, 1, 'TX-001', 'Transaction test', 'OPEN', 'MEDIUM', 0)
+                (1, 1, 'TX-001', 'Transaction test', 'OPEN', 'MEDIUM', 0,
+                 CURRENT_TIMESTAMP, DATEADD('HOUR', 8, CURRENT_TIMESTAMP))
                 """);
     }
 

@@ -180,8 +180,10 @@ class TicketClaimConcurrencyTest {
         jdbcTemplate.update(
                 """
                         INSERT INTO tf_ticket
-                            (tenant_id, ticket_no, title, status, priority, version)
-                        VALUES (1, ?, 'Race test', 'OPEN', 'MEDIUM', 0)
+                (tenant_id, ticket_no, title, status, priority, version,
+                 first_response_due_at, resolution_due_at)
+                VALUES (1, ?, 'Race test', 'OPEN', 'MEDIUM', 0,
+                        CURRENT_TIMESTAMP, DATEADD('HOUR', 8, CURRENT_TIMESTAMP))
                         """,
                 ticketNo
         );

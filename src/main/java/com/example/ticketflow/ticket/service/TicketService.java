@@ -6,6 +6,9 @@ import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.role.domain.Permissions;
+import com.example.ticketflow.sla.domain.SlaPolicy;
+import com.example.ticketflow.sla.domain.enums.SlaStatus;
+import com.example.ticketflow.sla.service.SlaPolicyService;
 import com.example.ticketflow.tenant.domain.Tenant;
 import com.example.ticketflow.tenant.mapper.TenantMapper;
 import com.example.ticketflow.ticket.domain.Ticket;
@@ -23,6 +26,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -34,17 +38,20 @@ public class TicketService {
     private final TenantMapper tenantMapper;
     private final UserAccountMapper userAccountMapper;
     private final TicketOperationMapper ticketOperationMapper;
+    private final SlaPolicyService slaPolicyService;
 
     public TicketService(
             TicketMapper ticketMapper,
             TenantMapper tenantMapper,
             UserAccountMapper userAccountMapper,
-            TicketOperationMapper ticketOperationMapper
+            TicketOperationMapper ticketOperationMapper,
+            SlaPolicyService slaPolicyService
     ) {
         this.ticketMapper = ticketMapper;
         this.tenantMapper = tenantMapper;
         this.userAccountMapper = userAccountMapper;
         this.ticketOperationMapper = ticketOperationMapper;
+        this.slaPolicyService = slaPolicyService;
     }
 
     @Transactional
@@ -97,6 +104,25 @@ public class TicketService {
         } else {
             ticket.setPriority(request.priority());
         }
+
+        // SLA 快照：按当前规则算好截止时间写进工单。
+        // 用快照而不是每次实时算，是为了让"改规则"只影响之后的工单（docs/06 §9）。
+        LocalDateTime createdAt = LocalDateTime.now();
+        ticket.setCreatedAt(createdAt);
+
+        SlaPolicy policy = slaPolicyService.requirePolicy(
+                tenantId,
+                ticket.getPriority()
+        );
+
+        ticket.setFirstResponseDueAt(
+                createdAt.plusMinutes(policy.getFirstResponseMinutes())
+        );
+        ticket.setResolutionDueAt(
+                createdAt.plusMinutes(policy.getResolutionMinutes())
+        );
+        ticket.setResponseSlaStatus(SlaStatus.NORMAL);
+        ticket.setResolutionSlaStatus(SlaStatus.NORMAL);
 
         ticketMapper.insert(ticket);
 

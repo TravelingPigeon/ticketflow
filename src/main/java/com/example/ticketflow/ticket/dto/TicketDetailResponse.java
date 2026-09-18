@@ -1,5 +1,6 @@
 package com.example.ticketflow.ticket.dto;
 
+import com.example.ticketflow.sla.domain.enums.SlaStatus;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.TicketOperation;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
@@ -23,6 +24,12 @@ public record TicketDetailResponse(
         Long version,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
+        LocalDateTime firstResponseDueAt,
+        LocalDateTime resolutionDueAt,
+        LocalDateTime firstRespondedAt,
+        LocalDateTime resolvedAt,
+        SlaStatus responseSlaStatus,
+        SlaStatus resolutionSlaStatus,
         List<TicketOperation> operations
 ) {
 
@@ -44,6 +51,12 @@ public record TicketDetailResponse(
                 ticket.getVersion(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt(),
+                ticket.getFirstResponseDueAt(),
+                ticket.getResolutionDueAt(),
+                ticket.getFirstRespondedAt(),
+                ticket.getResolvedAt(),
+                ticket.getResponseSlaStatus(),
+                ticket.getResolutionSlaStatus(),
                 List.copyOf(operations)
         );
     }

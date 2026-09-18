@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
+import com.example.ticketflow.sla.domain.enums.SlaStatus;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 
@@ -39,6 +40,18 @@ public class Ticket {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    private LocalDateTime firstResponseDueAt;
+
+    private LocalDateTime resolutionDueAt;
+
+    private LocalDateTime firstRespondedAt;
+
+    private LocalDateTime resolvedAt;
+
+    private SlaStatus responseSlaStatus;
+
+    private SlaStatus resolutionSlaStatus;
 
     public Long getId() {
         return id;
@@ -142,5 +155,53 @@ public class Ticket {
 
     public void setVersion(Long version) {
         this.version = version;
+    }
+
+    public LocalDateTime getFirstResponseDueAt() {
+        return firstResponseDueAt;
+    }
+
+    public void setFirstResponseDueAt(LocalDateTime firstResponseDueAt) {
+        this.firstResponseDueAt = firstResponseDueAt;
+    }
+
+    public LocalDateTime getResolutionDueAt() {
+        return resolutionDueAt;
+    }
+
+    public void setResolutionDueAt(LocalDateTime resolutionDueAt) {
+        this.resolutionDueAt = resolutionDueAt;
+    }
+
+    public LocalDateTime getFirstRespondedAt() {
+        return firstRespondedAt;
+    }
+
+    public void setFirstRespondedAt(LocalDateTime firstRespondedAt) {
+        this.firstRespondedAt = firstRespondedAt;
+    }
+
+    public LocalDateTime getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(LocalDateTime resolvedAt) {
+        this.resolvedAt = resolvedAt;
+    }
+
+    public SlaStatus getResponseSlaStatus() {
+        return responseSlaStatus;
+    }
+
+    public void setResponseSlaStatus(SlaStatus responseSlaStatus) {
+        this.responseSlaStatus = responseSlaStatus;
+    }
+
+    public SlaStatus getResolutionSlaStatus() {
+        return resolutionSlaStatus;
+    }
+
+    public void setResolutionSlaStatus(SlaStatus resolutionSlaStatus) {
+        this.resolutionSlaStatus = resolutionSlaStatus;
     }
 }

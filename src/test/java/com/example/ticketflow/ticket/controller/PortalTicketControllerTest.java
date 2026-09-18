@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.example.ticketflow.support.TestAuthorities;
+import com.example.ticketflow.sla.service.SlaPolicyService;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,6 +39,9 @@ class PortalTicketControllerTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private SlaPolicyService slaPolicyService;
 
     @BeforeEach
     void setUp() {
@@ -71,6 +75,9 @@ class PortalTicketControllerTest {
                     (1, 1, 'alice@example.com', 'test-hash', 'Alice', 'ACTIVE'),
                     (2, 1, 'bob@example.com', 'test-hash', 'Bob', 'ACTIVE')
                 """);
+
+        // 客户提单同样要算 SLA 截止时间，测试租户得有规则
+        slaPolicyService.createDefaultPolicies(1L);
     }
 
     @Test
