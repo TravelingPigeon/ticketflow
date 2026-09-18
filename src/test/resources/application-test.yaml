@@ -11,3 +11,10 @@ spring:
 
   flyway:
     enabled: false
+
+ticketflow:
+  sla:
+    scan:
+      # 定时任务在测试里必须关掉：它会和用例抢同一个 H2 库，
+      # 制造出"本地过、CI 挂"这类随机失败。扫描逻辑由 SlaScanServiceTest 直接调服务来验证。
+      enabled: false
