@@ -293,6 +293,8 @@ public class TicketService {
 
         ticket.setStatus(request.status());
 
+        recordResolution(ticket);
+
         if (ticketMapper.updateById(ticket) == 0) {
             throw new BusinessException(
                     ErrorCode.TICKET_CONCURRENT_MODIFICATION,
@@ -311,6 +313,27 @@ public class TicketService {
         return ticketMapper.selectById(ticketId);
     }
 
+    /**
+     * 工单进入 RESOLVED 时记录解决完成。
+     *
+     * <p>和首次响应同样的规则：已经违约就保留违约状态、只补时间。
+     * 重开后再解决不会覆盖原来的 {@code resolvedAt}，也不重开新的 SLA 周期（docs/06 §10）。</p>
+     */
+    private void recordResolution(Ticket ticket) {
+        if (ticket.getStatus() != TicketStatus.RESOLVED) {
+            return;
+        }
+
+        if (ticket.getResolvedAt() != null) {
+            return;
+        }
+
+        ticket.setResolvedAt(LocalDateTime.now());
+
+        if (ticket.getResolutionSlaStatus() != SlaStatus.BREACHED) {
+            ticket.setResolutionSlaStatus(SlaStatus.COMPLETED);
+        }
+    }
 
     public Ticket findTicket(
             CurrentActor actor,
