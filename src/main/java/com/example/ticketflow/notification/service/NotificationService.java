@@ -83,6 +83,23 @@ public class NotificationService {
             String title,
             Function<Long, String> businessKeyOf
     ) {
+        notifyAdmins(tenantId, type, ticket, title, null, businessKeyOf);
+    }
+
+    /**
+     * 给所有启用的管理员发通知，并带上正文。
+     *
+     * <p>和上面那个方法只差一个 content：SLA 通知需要告诉管理员
+     * "哪张单、什么时候到期"，光看标题不够用。</p>
+     */
+    public void notifyAdmins(
+            Long tenantId,
+            NotificationType type,
+            Ticket ticket,
+            String title,
+            String content,
+            Function<Long, String> businessKeyOf
+    ) {
         for (Long adminId : userAccountMapper.selectActiveAdminIds(tenantId)) {
             notifyMember(
                     tenantId,
@@ -90,7 +107,7 @@ public class NotificationService {
                     type,
                     ticket,
                     title,
-                    null,
+                    content,
                     businessKeyOf.apply(adminId)
             );
         }

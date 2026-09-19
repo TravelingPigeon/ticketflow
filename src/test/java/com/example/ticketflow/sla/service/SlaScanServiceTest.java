@@ -2,7 +2,11 @@ package com.example.ticketflow.sla.service;
 
 import com.example.ticketflow.auth.security.ActorType;
 import com.example.ticketflow.auth.security.CurrentActor;
+import com.example.ticketflow.notification.domain.Notification;
+import com.example.ticketflow.notification.domain.enums.NotificationType;
+import com.example.ticketflow.notification.service.NotificationService;
 import com.example.ticketflow.role.service.BuiltInRoles;
+import com.example.ticketflow.role.service.MemberRoleService;
 import com.example.ticketflow.sla.domain.enums.SlaStatus;
 import com.example.ticketflow.sla.dto.SlaPolicyRequest;
 import com.example.ticketflow.support.TestAuthorities;
@@ -12,6 +16,7 @@ import com.example.ticketflow.ticket.comment.dto.CreateCommentRequest;
 import com.example.ticketflow.ticket.comment.service.TicketCommentService;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
+import com.example.ticketflow.ticket.dto.AssignTicketRequest;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
 import com.example.ticketflow.ticket.service.TicketService;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,11 +57,19 @@ class SlaScanServiceTest {
     private SlaScanService slaScanService;
 
     @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private MemberRoleService memberRoleService;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private long tenantId;
 
     private CurrentActor admin;
+
+    private CurrentActor agent;
 
     @BeforeEach
     void setUp() {
@@ -84,12 +97,29 @@ class SlaScanServiceTest {
                 """
                         INSERT INTO tf_user
                             (id, tenant_id, username, password_hash, display_name, status)
-                        VALUES (1, ?, 'admin-one', 'test-hash', 'Admin One', 'ACTIVE')
+                        VALUES
+                            (1, ?, 'admin-one', 'test-hash', 'Admin One', 'ACTIVE'),
+                            (2, ?, 'agent-one', 'test-hash', 'Agent One', 'ACTIVE')
                         """,
+                tenantId,
                 tenantId
         );
 
+        // 动态 RBAC：ADMIN / AGENT 不是 tf_user 上的一列，要写进 tf_member_role
+        // 才算数。selectActiveAdminIds 查的就是这张关联表。
+        memberRoleService.replaceMemberRoles(
+                tenantId,
+                1L,
+                List.of(BuiltInRoles.ADMIN)
+        );
+        memberRoleService.replaceMemberRoles(
+                tenantId,
+                2L,
+                List.of(BuiltInRoles.AGENT)
+        );
+
         admin = actorOf(tenantId);
+        agent = actorOf(tenantId, 2L, "agent-one", BuiltInRoles.AGENT);
     }
 
     @Test
@@ -224,6 +254,133 @@ class SlaScanServiceTest {
         assertEquals(SlaStatus.NORMAL, responseStatusOf(ticketId));
     }
 
+    // ------------------------------------------------------------------
+    // L2e-2：SLA 通知
+    // ------------------------------------------------------------------
+
+    @Test
+    void shouldNotifyAssigneeWhenResponseSlaIsDueSoon() {
+        long ticketId = createTicket(TicketPriority.HIGH);
+        assignTo(ticketId, 2L);
+
+        // HIGH 的提醒阈值是 30 分钟，10 分钟后到期 → 落在窗口内
+        setResponseDue(ticketId, 10);
+
+        slaScanService.scan();
+
+        assertEquals(
+                1,
+                notificationsOf(agent, NotificationType.SLA_DUE_SOON).size()
+        );
+        // 有人负责时只催负责人，不再打扰管理员
+        assertEquals(
+                0,
+                notificationsOf(admin, NotificationType.SLA_DUE_SOON).size()
+        );
+    }
+
+    @Test
+    void shouldNotifyAdminsWhenUnassignedTicketIsDueSoon() {
+        long ticketId = createTicket(TicketPriority.HIGH);
+
+        // 没有负责人 → 管理员兜底
+        setResponseDue(ticketId, 10);
+
+        slaScanService.scan();
+
+        assertEquals(
+                1,
+                notificationsOf(admin, NotificationType.SLA_DUE_SOON).size()
+        );
+        assertEquals(
+                0,
+                notificationsOf(agent, NotificationType.SLA_DUE_SOON).size()
+        );
+    }
+
+    @Test
+    void shouldNotifyAssigneeAndAdminsWhenResponseSlaBreached() {
+        long ticketId = createTicket(TicketPriority.HIGH);
+        assignTo(ticketId, 2L);
+
+        setResponseDue(ticketId, -1);
+
+        slaScanService.scan();
+
+        List<Notification> toAssignee =
+                notificationsOf(agent, NotificationType.SLA_BREACHED);
+        List<Notification> toAdmin =
+                notificationsOf(admin, NotificationType.SLA_BREACHED);
+
+        // 超时要让干活的人和管事的人都知道
+        assertEquals(1, toAssignee.size());
+        assertEquals(1, toAdmin.size());
+
+        // 去重键格式固定：事件:标识:member:成员ID
+        assertEquals(
+                "sla:response:breached:" + ticketId + ":member:2",
+                toAssignee.get(0).getBusinessKey()
+        );
+        assertEquals(ticketId, toAssignee.get(0).getTicketId());
+    }
+
+    @Test
+    void shouldNotSendTheSameNotificationTwice() {
+        long ticketId = createTicket(TicketPriority.HIGH);
+
+        setResponseDue(ticketId, -1);
+
+        slaScanService.scan();
+        // 第二轮：状态已经是 BREACHED，条件更新匹配不到，不该再发一条
+        slaScanService.scan();
+
+        assertEquals(
+                1,
+                notificationsOf(admin, NotificationType.SLA_BREACHED).size()
+        );
+    }
+
+    @Test
+    void shouldSendOnlyOneNotificationWhenAssigneeIsAlsoAdmin() {
+        long ticketId = createTicket(TicketPriority.HIGH);
+
+        // 1 号既是负责人又是管理员：两条路径在同一个 business_key 上相遇，
+        // 第二条被数据库唯一约束挡掉
+        assignTo(ticketId, 1L);
+        setResponseDue(ticketId, -1);
+
+        slaScanService.scan();
+
+        assertEquals(
+                1,
+                notificationsOf(admin, NotificationType.SLA_BREACHED).size()
+        );
+    }
+
+    @Test
+    void shouldNotifyOnResolutionSla() {
+        long ticketId = createTicket(TicketPriority.HIGH);
+        assignTo(ticketId, 2L);
+
+        setResolutionDue(ticketId, 10);
+        slaScanService.scan();
+        assertEquals(
+                1,
+                notificationsOf(agent, NotificationType.SLA_DUE_SOON).size()
+        );
+
+        setResolutionDue(ticketId, -1);
+        slaScanService.scan();
+        assertEquals(
+                1,
+                notificationsOf(agent, NotificationType.SLA_BREACHED).size()
+        );
+        assertEquals(
+                1,
+                notificationsOf(admin, NotificationType.SLA_BREACHED).size()
+        );
+    }
+
     private long createTicket(TicketPriority priority) {
         return createTicketFor(tenantId, priority);
     }
@@ -243,13 +400,51 @@ class SlaScanServiceTest {
     }
 
     private CurrentActor actorOf(long targetTenantId) {
+        return actorOf(
+                targetTenantId,
+                1L,
+                "admin-one",
+                BuiltInRoles.ADMIN
+        );
+    }
+
+    private CurrentActor actorOf(
+            long targetTenantId,
+            long memberId,
+            String username,
+            String roleCode
+    ) {
         return new CurrentActor(
                 targetTenantId,
                 ActorType.MEMBER,
-                1L,
-                "admin-one",
-                TestAuthorities.permissionCodes(jdbcTemplate, BuiltInRoles.ADMIN)
+                memberId,
+                username,
+                TestAuthorities.permissionCodes(jdbcTemplate, roleCode)
         );
+    }
+
+    private void assignTo(long ticketId, long memberId) {
+        ticketService.assignTicket(
+                admin,
+                ticketId,
+                new AssignTicketRequest(memberId)
+        );
+    }
+
+    /**
+     * 从"这个人的通知列表"里挑出某一种类型。
+     *
+     * <p>必须按类型过滤：分配工单本身也会发通知，一张单上同时存在
+     * 两种类型的通知是正常的。</p>
+     */
+    private List<Notification> notificationsOf(
+            CurrentActor recipient,
+            NotificationType type
+    ) {
+        return notificationService.listNotifications(recipient, false)
+                .stream()
+                .filter(notification -> notification.getType() == type)
+                .toList();
     }
 
     private void setResponseDue(long ticketId, int minutesFromNow) {

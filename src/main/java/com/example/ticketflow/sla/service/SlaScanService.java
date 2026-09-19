@@ -2,6 +2,8 @@ package com.example.ticketflow.sla.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.example.ticketflow.notification.domain.enums.NotificationType;
+import com.example.ticketflow.notification.service.NotificationService;
 import com.example.ticketflow.sla.domain.SlaPolicy;
 import com.example.ticketflow.sla.domain.enums.SlaStatus;
 import com.example.ticketflow.sla.mapper.SlaPolicyMapper;
@@ -13,6 +15,7 @@ import com.example.ticketflow.ticket.mapper.TicketMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -37,18 +40,25 @@ public class SlaScanService {
     /** 每类查询每个租户一次最多处理多少条 */
     private static final int BATCH_SIZE = 100;
 
+    /** 通知正文里的时间：精确到分钟就够，秒对客服没有意义 */
+    private static final DateTimeFormatter NOTIFICATION_TIME =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
     private final TenantMapper tenantMapper;
     private final SlaPolicyMapper slaPolicyMapper;
     private final TicketMapper ticketMapper;
+    private final NotificationService notificationService;
 
     public SlaScanService(
             TenantMapper tenantMapper,
             SlaPolicyMapper slaPolicyMapper,
-            TicketMapper ticketMapper
+            TicketMapper ticketMapper,
+            NotificationService notificationService
     ) {
         this.tenantMapper = tenantMapper;
         this.slaPolicyMapper = slaPolicyMapper;
         this.ticketMapper = ticketMapper;
+        this.notificationService = notificationService;
     }
 
     public ScanSummary scan() {
@@ -144,7 +154,7 @@ public class SlaScanService {
                     SlaStatus.REMINDED
             )) {
                 reminded++;
-                // L2e：这里插入"即将超时"通知（只有推进成功才发）
+                notifyResponseDueSoon(tenantId, ticket);
             }
         }
 
@@ -176,7 +186,7 @@ public class SlaScanService {
                     SlaStatus.BREACHED
             )) {
                 breached++;
-                // L2e：这里插入"已超时"通知
+                notifyResponseBreached(tenantId, ticket);
             }
         }
 
@@ -229,6 +239,7 @@ public class SlaScanService {
                     SlaStatus.REMINDED
             )) {
                 reminded++;
+                notifyResolutionDueSoon(tenantId, ticket);
             }
         }
 
@@ -259,6 +270,7 @@ public class SlaScanService {
                     SlaStatus.BREACHED
             )) {
                 breached++;
+                notifyResolutionBreached(tenantId, ticket);
             }
         }
 
@@ -319,5 +331,173 @@ public class SlaScanService {
         );
 
         return updated == 1;
+    }
+
+    // ------------------------------------------------------------------
+    // L2e-2：状态推进成功之后才发通知
+    // ------------------------------------------------------------------
+
+    /** 响应 SLA 即将超时 */
+    private void notifyResponseDueSoon(Long tenantId, Ticket ticket) {
+        notifyDueSoon(
+                tenantId,
+                ticket,
+                "response",
+                "工单即将超出响应时限",
+                "工单 " + ticket.getTicketNo()
+                        + "（" + ticket.getTitle() + "）将在 "
+                        + formatTime(ticket.getFirstResponseDueAt())
+                        + " 超出首次响应时限，请尽快处理。"
+        );
+    }
+
+    /** 解决 SLA 即将超时 */
+    private void notifyResolutionDueSoon(Long tenantId, Ticket ticket) {
+        notifyDueSoon(
+                tenantId,
+                ticket,
+                "resolution",
+                "工单即将超出解决时限",
+                "工单 " + ticket.getTicketNo()
+                        + "（" + ticket.getTitle() + "）将在 "
+                        + formatTime(ticket.getResolutionDueAt())
+                        + " 超出解决时限，请尽快处理。"
+        );
+    }
+
+    /**
+     * "即将超时"的共同逻辑：有负责人就只发给他；没有负责人发给管理员。
+     *
+     * <p>提醒是<b>催办</b>，催的是干活的人；管理员只在没人干活时兜底。
+     * 否则一张工单会同时打扰一整队人，提醒就变成了噪音。</p>
+     */
+    private void notifyDueSoon(
+            Long tenantId,
+            Ticket ticket,
+            String side,
+            String title,
+            String content
+    ) {
+        Long assigneeId = ticket.getAssigneeId();
+
+        if (assigneeId != null) {
+            notificationService.notifyMember(
+                    tenantId,
+                    assigneeId,
+                    NotificationType.SLA_DUE_SOON,
+                    ticket,
+                    title,
+                    content,
+                    slaBusinessKey(side, "reminder", ticket.getId(), assigneeId)
+            );
+            return;
+        }
+
+        notificationService.notifyAdmins(
+                tenantId,
+                NotificationType.SLA_DUE_SOON,
+                ticket,
+                title,
+                content,
+                adminId -> slaBusinessKey(
+                        side,
+                        "reminder",
+                        ticket.getId(),
+                        adminId
+                )
+        );
+    }
+
+    /** 响应 SLA 已超时 */
+    private void notifyResponseBreached(Long tenantId, Ticket ticket) {
+        notifyBreached(
+                tenantId,
+                ticket,
+                "response",
+                "工单已超出响应时限",
+                "工单 " + ticket.getTicketNo()
+                        + "（" + ticket.getTitle() + "）已于 "
+                        + formatTime(ticket.getFirstResponseDueAt())
+                        + " 超出首次响应时限。"
+        );
+    }
+
+    /** 解决 SLA 已超时 */
+    private void notifyResolutionBreached(Long tenantId, Ticket ticket) {
+        notifyBreached(
+                tenantId,
+                ticket,
+                "resolution",
+                "工单已超出解决时限",
+                "工单 " + ticket.getTicketNo()
+                        + "（" + ticket.getTitle() + "）已于 "
+                        + formatTime(ticket.getResolutionDueAt())
+                        + " 超出解决时限。"
+        );
+    }
+
+    /**
+     * "已超时"的共同逻辑：负责人要知道，管理员也要知道——超时是要被追责的事。
+     *
+     * <p>如果负责人本人就是管理员，两次调用生成的是<b>同一个</b> business_key，
+     * 数据库唯一约束会把第二条挡掉：他不会收到两条一样的通知。
+     * 这也是 business_key 里必须带收件人 ID 的原因。</p>
+     */
+    private void notifyBreached(
+            Long tenantId,
+            Ticket ticket,
+            String side,
+            String title,
+            String content
+    ) {
+        Long assigneeId = ticket.getAssigneeId();
+
+        if (assigneeId != null) {
+            notificationService.notifyMember(
+                    tenantId,
+                    assigneeId,
+                    NotificationType.SLA_BREACHED,
+                    ticket,
+                    title,
+                    content,
+                    slaBusinessKey(side, "breached", ticket.getId(), assigneeId)
+            );
+        }
+
+        notificationService.notifyAdmins(
+                tenantId,
+                NotificationType.SLA_BREACHED,
+                ticket,
+                title,
+                content,
+                adminId -> slaBusinessKey(
+                        side,
+                        "breached",
+                        ticket.getId(),
+                        adminId
+                )
+        );
+    }
+
+    /**
+     * 去重键：{@code sla:response:breached:17:member:3}。
+     *
+     * <p>格式来自设计文档：{@code 事件:标识:member:成员ID}。
+     * 带收件人 ID 是为了让"同一件事发给多个人"各占一行，
+     * 而"同一件事发给同一个人"永远只有一行。</p>
+     */
+    private String slaBusinessKey(
+            String side,
+            String level,
+            Long ticketId,
+            Long memberId
+    ) {
+        return "sla:" + side + ":" + level
+                + ":" + ticketId
+                + ":member:" + memberId;
+    }
+
+    private String formatTime(LocalDateTime time) {
+        return time == null ? "未知时间" : NOTIFICATION_TIME.format(time);
     }
 }
