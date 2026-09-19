@@ -132,6 +132,9 @@ class PermissionAnnotationTest {
                 || pattern.startsWith("/api/v1/auth/")
                 || pattern.startsWith("/api/v1/ping")
                 // 租户注册必须匿名可调，否则第一个管理员永远建不出来
-                || pattern.startsWith("/api/v1/tenants/register"));
+                || pattern.startsWith("/api/v1/tenants/register")
+                // 通知只作用于收件人自己（查询条件里带 recipientId），
+                // 和 /auth/me 一样不存在越权可能，不需要额外的权限串
+                || pattern.startsWith("/api/v1/notifications"));
     }
 }

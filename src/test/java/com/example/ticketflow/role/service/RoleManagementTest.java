@@ -59,6 +59,7 @@ class RoleManagementTest {
         // 清库之前先清缓存：同一个 JVM 里多个用例会复用同一批 ID
         permissionCache.clear();
 
+        jdbcTemplate.update("DELETE FROM tf_notification");
         jdbcTemplate.update("DELETE FROM tf_ticket_operation");
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");

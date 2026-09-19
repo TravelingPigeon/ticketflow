@@ -40,6 +40,7 @@ public enum ErrorCode {
     ROLE_NOT_FOUND(HttpStatus.NOT_FOUND),
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND),
     ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND),
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND),
 
     // ---- 409：与当前数据状态冲突（唯一键、状态机、并发）----
     TENANT_CODE_EXISTS(HttpStatus.CONFLICT),

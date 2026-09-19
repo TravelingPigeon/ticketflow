@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.common.exception.ErrorCode;
+import com.example.ticketflow.notification.domain.enums.NotificationType;
+import com.example.ticketflow.notification.service.NotificationService;
 import com.example.ticketflow.role.domain.Permissions;
 import com.example.ticketflow.sla.domain.SlaPolicy;
 import com.example.ticketflow.sla.domain.enums.SlaStatus;
@@ -39,19 +41,22 @@ public class TicketService {
     private final UserAccountMapper userAccountMapper;
     private final TicketOperationMapper ticketOperationMapper;
     private final SlaPolicyService slaPolicyService;
+    private final NotificationService notificationService;
 
     public TicketService(
             TicketMapper ticketMapper,
             TenantMapper tenantMapper,
             UserAccountMapper userAccountMapper,
             TicketOperationMapper ticketOperationMapper,
-            SlaPolicyService slaPolicyService
+            SlaPolicyService slaPolicyService,
+            NotificationService notificationService
     ) {
         this.ticketMapper = ticketMapper;
         this.tenantMapper = tenantMapper;
         this.userAccountMapper = userAccountMapper;
         this.ticketOperationMapper = ticketOperationMapper;
         this.slaPolicyService = slaPolicyService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -475,6 +480,20 @@ public class TicketService {
                     TicketOperationType.STATUS_CHANGED,
                     previousStatus.name(),
                     ticket.getStatus().name()
+            );
+        }
+
+        // 给被分配的人发通知。自己把自己的单领了不用提醒——自己做的事自己知道。
+        if (!assigneeId.equals(actor.actorId())) {
+            notificationService.notifyMember(
+                    ticket.getTenantId(),
+                    assigneeId,
+                    NotificationType.TICKET_ASSIGNED,
+                    ticket,
+                    "工单已分配给你",
+                    null,
+                    "ticket:assigned:" + ticket.getId()
+                            + ":member:" + assigneeId
             );
         }
 

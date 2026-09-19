@@ -64,6 +64,9 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
+
+        jdbcTemplate.update("DELETE FROM tf_notification");
+
         jdbcTemplate.update("DELETE FROM tf_ticket_operation");
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");

@@ -46,6 +46,7 @@ class RoleProvisioningTest {
         // 否则上一个用例缓存的权限会被下一个用例读到
         permissionCache.clear();
 
+        jdbcTemplate.update("DELETE FROM tf_notification");
         jdbcTemplate.update("DELETE FROM tf_ticket_operation");
         jdbcTemplate.update("DELETE FROM tf_ticket_comment");
         jdbcTemplate.update("DELETE FROM tf_ticket");
