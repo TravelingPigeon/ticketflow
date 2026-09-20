@@ -1,6 +1,8 @@
 package com.example.ticketflow.customer.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.ticketflow.audit.service.AuditLogService;
+import com.example.ticketflow.auth.security.ActorType;
 import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.customer.domain.Customer;
@@ -21,15 +23,18 @@ public class CustomerService {
     private final CustomerMapper customerMapper;
     private final TenantMapper tenantMapper;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
     public CustomerService(
             CustomerMapper customerMapper,
             TenantMapper tenantMapper,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            AuditLogService auditLogService
     ) {
         this.customerMapper = customerMapper;
         this.tenantMapper = tenantMapper;
         this.passwordEncoder = passwordEncoder;
+        this.auditLogService = auditLogService;
     }
 
     public Customer register(RegisterCustomerRequest request) {
@@ -60,12 +65,43 @@ public class CustomerService {
     }
 
     public Customer authenticate(CustomerLoginRequest request) {
-        Tenant tenant = requireTenant(request.tenantCode());
+        // 这里不能用 requireTenant：它查不到就直接抛异常，
+        // 那样"租户编码写错"这一种尝试就留不下审计。审计要先写、异常后抛。
+        Tenant tenant = tenantMapper.selectOne(
+                new LambdaQueryWrapper<Tenant>()
+                        .eq(Tenant::getCode, request.tenantCode().trim())
+        );
+
+        if (tenant == null) {
+            auditLogService.recordLoginFailure(
+                    ActorType.CUSTOMER,
+                    null,
+                    null,
+                    request.tenantCode(),
+                    request.email(),
+                    "TENANT_NOT_FOUND"
+            );
+
+            throw new BusinessException(
+                    ErrorCode.TENANT_NOT_FOUND,
+                    "租户不存在"
+            );
+        }
+
         String email = normalizeEmail(request.email());
 
         Customer customer = findCustomer(tenant.getId(), email);
 
         if (customer == null) {
+            auditLogService.recordLoginFailure(
+                    ActorType.CUSTOMER,
+                    tenant.getId(),
+                    null,
+                    request.tenantCode(),
+                    email,
+                    "EMAIL_NOT_FOUND"
+            );
+
             throw new BusinessException(
                     ErrorCode.INVALID_CREDENTIALS,
                     "邮箱或密码错误"
@@ -73,6 +109,15 @@ public class CustomerService {
         }
 
         if (customer.getStatus() == CustomerStatus.LOCKED) {
+            auditLogService.recordLoginFailure(
+                    ActorType.CUSTOMER,
+                    tenant.getId(),
+                    customer.getId(),
+                    request.tenantCode(),
+                    email,
+                    "CUSTOMER_LOCKED"
+            );
+
             throw new BusinessException(
                     ErrorCode.CUSTOMER_LOCKED,
                     "账号已被锁定"
@@ -85,11 +130,28 @@ public class CustomerService {
         );
 
         if (!passwordMatches) {
+            auditLogService.recordLoginFailure(
+                    ActorType.CUSTOMER,
+                    tenant.getId(),
+                    customer.getId(),
+                    request.tenantCode(),
+                    email,
+                    "BAD_PASSWORD"
+            );
+
             throw new BusinessException(
                     ErrorCode.INVALID_CREDENTIALS,
                     "邮箱或密码错误"
             );
         }
+
+        auditLogService.recordLoginSuccess(
+                ActorType.CUSTOMER,
+                tenant.getId(),
+                customer.getId(),
+                request.tenantCode(),
+                email
+        );
 
         return customer;
     }

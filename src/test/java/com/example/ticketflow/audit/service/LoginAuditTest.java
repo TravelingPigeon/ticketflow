@@ -57,6 +57,9 @@ class LoginAuditTest {
 
     private static final long ALICE_ID = 1L;
 
+    /** 客户 zhang 的 ID 与成员 alice 相同，这是刻意的 */
+    private static final long CUSTOMER_ZHANG_ID = 1L;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -118,6 +121,22 @@ class LoginAuditTest {
         );
 
         roleService.createBuiltInRoles(TENANT_ID);
+
+        // 客户 1 号和成员 1 号**故意同号**：演示库里 zhang 和 alice 就是这样，
+        // "只用 actor_id 认人"的写法在这个数据上会直接暴露
+        jdbcTemplate.update(
+                """
+                        INSERT INTO tf_customer
+                            (id, tenant_id, email, password_hash,
+                             display_name, status)
+                        VALUES
+                            (1, 1, 'zhang@example.com', ?, 'Zhang', 'ACTIVE'),
+                            (2, 1, 'locked@example.com', ?, 'Locked', 'LOCKED')
+                        """,
+                passwordEncoder.encode(RAW_PASSWORD),
+                passwordEncoder.encode(RAW_PASSWORD)
+        );
+
         memberRoleService.replaceMemberRoles(
                 TENANT_ID,
                 ALICE_ID,
@@ -236,6 +255,133 @@ class LoginAuditTest {
     // 独立事务：这是本轮最难写也最重要的一条
     // ------------------------------------------------------------------
 
+    // ------------------------------------------------------------------
+    // 客户登录（A3-2）：同一张表、同一套写入，只有 actor_type 不同
+    // ------------------------------------------------------------------
+
+    @Test
+    void shouldRecordCustomerLoginSuccess() throws Exception {
+        customerLogin("audit-tenant", "zhang@example.com", RAW_PASSWORD)
+                .andExpect(status().isOk());
+
+        Map<String, Object> row = onlyAuditRow();
+
+        assertEquals("LOGIN", row.get("action"));
+        assertEquals("SUCCESS", row.get("result"));
+        assertEquals("CUSTOMER", row.get("actor_type"));
+        assertEquals(CUSTOMER_ZHANG_ID, row.get("actor_id"));
+        assertEquals(TENANT_ID, row.get("tenant_id"));
+        assertTrue(
+                ((String) row.get("detail_json")).contains("zhang@example.com")
+        );
+    }
+
+    @Test
+    void shouldRecordCustomerFailureWhenPasswordIsWrong() throws Exception {
+        customerLogin("audit-tenant", "zhang@example.com", "WrongPassword-999")
+                .andExpect(status().isUnauthorized());
+
+        Map<String, Object> row = onlyAuditRow();
+
+        assertEquals("CUSTOMER", row.get("actor_type"));
+        assertEquals("FAILURE", row.get("result"));
+        assertEquals(CUSTOMER_ZHANG_ID, row.get("actor_id"));
+        assertTrue(((String) row.get("detail_json")).contains("BAD_PASSWORD"));
+    }
+
+    @Test
+    void shouldRecordCustomerFailureWhenEmailDoesNotExist() throws Exception {
+        customerLogin("audit-tenant", "nobody@example.com", RAW_PASSWORD)
+                .andExpect(status().isUnauthorized());
+
+        Map<String, Object> row = onlyAuditRow();
+
+        assertEquals("CUSTOMER", row.get("actor_type"));
+        assertEquals(TENANT_ID, row.get("tenant_id"));
+        assertNull(row.get("actor_id"));
+        assertTrue(
+                ((String) row.get("detail_json")).contains("EMAIL_NOT_FOUND")
+        );
+    }
+
+    @Test
+    void shouldRecordCustomerFailureWhenTenantDoesNotExist() throws Exception {
+        customerLogin("no-such-tenant", "zhang@example.com", RAW_PASSWORD)
+                // 注意：客户登录在租户不存在时返回 404（沿用原行为），
+                // 成员登录返回 401——这个不一致已登记，见 docs/11
+                .andExpect(status().isNotFound());
+
+        Map<String, Object> row = onlyAuditRow();
+
+        assertEquals("CUSTOMER", row.get("actor_type"));
+        assertNull(row.get("tenant_id"));
+        assertNull(row.get("actor_id"));
+        assertTrue(
+                ((String) row.get("detail_json")).contains("TENANT_NOT_FOUND")
+        );
+    }
+
+    @Test
+    void shouldRecordCustomerFailureWhenCustomerIsLocked() throws Exception {
+        customerLogin("audit-tenant", "locked@example.com", RAW_PASSWORD)
+                .andExpect(status().isForbidden());
+
+        Map<String, Object> row = onlyAuditRow();
+
+        assertEquals("CUSTOMER", row.get("actor_type"));
+        assertTrue(((String) row.get("detail_json")).contains("CUSTOMER_LOCKED"));
+    }
+
+    @Test
+    void shouldNormalizeEmailInCustomerAudit() throws Exception {
+        customerLogin("audit-tenant", "  ZHANG@Example.com  ", RAW_PASSWORD)
+                .andExpect(status().isOk());
+
+        String detail = (String) onlyAuditRow().get("detail_json");
+
+        // 记的是"实际用于匹配的那个值"，否则同一个账号在日志里会有两种写法
+        assertTrue(detail.contains("zhang@example.com"), detail);
+        assertFalse(detail.contains("ZHANG@Example.com"), detail);
+    }
+
+    @Test
+    void shouldDistinguishMemberAndCustomerWithTheSameId() throws Exception {
+        // 同一个租户里，成员 1 号（alice）和客户 1 号（zhang）各登录一次
+        login("audit-tenant", "alice", RAW_PASSWORD);
+        customerLogin("audit-tenant", "zhang@example.com", RAW_PASSWORD);
+
+        List<Map<String, Object>> rows = auditRows();
+
+        assertEquals(2, rows.size());
+
+        // 两行的 actor_id 都是 1——只有 actor_type 能区分它们。
+        // 这就是"令牌里必须带 actorType""通知表要 recipient_type""评论表要 author_type"
+        // 这些设计的同一个理由。
+        assertEquals(1L, rows.get(0).get("actor_id"));
+        assertEquals(1L, rows.get(1).get("actor_id"));
+        assertEquals("MEMBER", rows.get(0).get("actor_type"));
+        assertEquals("CUSTOMER", rows.get(1).get("actor_type"));
+        assertFalse(
+                rows.get(0).get("actor_type").equals(rows.get(1).get("actor_type"))
+        );
+    }
+
+    @Test
+    void shouldNeverStoreCustomerPasswordInAudit() throws Exception {
+        String attemptedPassword = "CustomerSecret-4321";
+
+        customerLogin("audit-tenant", "zhang@example.com", attemptedPassword)
+                .andExpect(status().isUnauthorized());
+
+        String rowAsText = onlyAuditRow().toString();
+
+        assertFalse(rowAsText.contains(attemptedPassword), rowAsText);
+    }
+
+    // ------------------------------------------------------------------
+    // 独立事务：这是 A3-1 里最难写也最重要的一条
+    // ------------------------------------------------------------------
+
     @Test
     void shouldKeepFailureAuditWhenOuterTransactionRollsBack() {
         TransactionTemplate template =
@@ -337,6 +483,26 @@ class LoginAuditTest {
 
         return mockMvc.perform(
                 post("/api/v1/auth/login")
+                        .contentType(APPLICATION_JSON)
+                        .content(body)
+        );
+    }
+
+    private org.springframework.test.web.servlet.ResultActions customerLogin(
+            String tenantCode,
+            String email,
+            String password
+    ) throws Exception {
+        String body = """
+                {
+                  "tenantCode": "%s",
+                  "email": "%s",
+                  "password": "%s"
+                }
+                """.formatted(tenantCode, email, password);
+
+        return mockMvc.perform(
+                post("/api/v1/portal/auth/login")
                         .contentType(APPLICATION_JSON)
                         .content(body)
         );
