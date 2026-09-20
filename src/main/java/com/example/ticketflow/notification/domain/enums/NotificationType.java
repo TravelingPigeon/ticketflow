@@ -10,5 +10,8 @@ public enum NotificationType {
     SLA_DUE_SOON,
 
     /** 你负责的工单已经超出 SLA */
-    SLA_BREACHED
+    SLA_BREACHED,
+
+    /** 客户回复了你负责的工单 */
+    CUSTOMER_REPLIED
 }
