@@ -287,16 +287,34 @@ public class TicketService {
 
         requireCanHandleTicket(ticket, actor);
 
+        changeStatus(ticket, actor, request.status());
+
+        return ticketMapper.selectById(ticketId);
+    }
+
+    /**
+     * 状态推进的公共部分：校验转换表 → 条件更新（乐观锁）→ 写审计。
+     *
+     * <p>抽出来的原因很实际：到 F7 这一步，"改状态"已经有三个入口——
+     * 成员改状态、客户回复自动恢复、客户关闭／重开。
+     * 三份复制粘贴的代码就是三份乐观锁判断和三份审计格式；
+     * 将来改一次错误码、加一个字段，就得记住改三个地方，漏一个就是隐性 bug。</p>
+     */
+    private void changeStatus(
+            Ticket ticket,
+            CurrentActor actor,
+            TicketStatus target
+    ) {
         TicketStatus previousStatus = ticket.getStatus();
 
-        if (!previousStatus.canTransitionTo(request.status())) {
+        if (!previousStatus.canTransitionTo(target)) {
             throw new BusinessException(
                     ErrorCode.INVALID_STATUS_TRANSITION,
                     "当前状态不允许变更为目标状态"
             );
         }
 
-        ticket.setStatus(request.status());
+        ticket.setStatus(target);
 
         recordResolution(ticket);
 
@@ -312,8 +330,89 @@ public class TicketService {
                 actor,
                 TicketOperationType.STATUS_CHANGED,
                 previousStatus.name(),
-                ticket.getStatus().name()
+                target.name()
         );
+    }
+
+    /**
+     * 客户回复"等待客户"的工单后，自动回到处理中。
+     *
+     * <p>对应 docs/06 §4 命令表里的 {@code reply}：<b>客户回复等待中的工单时恢复处理</b>。
+     * 放在 TicketService 而不是评论服务，是因为状态机、乐观锁和审计都归工单这一侧管——
+     * 两条入口（成员改状态 / 客户回复）用同一张转换表、同一套并发检查、同一张审计表。</p>
+     *
+     * <p>两个前提不满足时都<b>静默返回 false</b>，不报错：</p>
+     * <ul>
+     *   <li><b>回复的人必须是客户</b>——设计稿的额外规则是"<b>客户</b>回复等待中工单时恢复处理"。
+     *       客服回复不代表客户已经补充了信息，客服要恢复处理应该显式走状态流转命令；</li>
+     *   <li><b>状态必须是"等待客户"</b>——工单可能已经被客服自己改回处理中了，
+     *       那客户这条评论没有任何理由失败。</li>
+     * </ul>
+     *
+     * @return true 表示这次真的推进了状态
+     */
+    @Transactional
+    public boolean resumeAfterCustomerReply(
+            CurrentActor actor,
+            Ticket ticket
+    ) {
+        if (!actor.isCustomer()
+                || ticket.getStatus() != TicketStatus.WAITING_CUSTOMER) {
+            return false;
+        }
+
+        changeStatus(ticket, actor, TicketStatus.PROCESSING);
+
+        return true;
+    }
+
+    /**
+     * 客户确认关闭自己的工单（docs/06 §4 的 {@code close} 命令）。
+     *
+     * <p>客户的数据范围由 {@link #findTicket} 保证：客户只能取到
+     * {@code customer_id} 是自己的工单，别人的单一律是"不存在"（404）。
+     * 这比"先查出来再判断是不是本人"更安全——判断分支写漏了就是越权，
+     * 而查询条件写错了只会查不到。</p>
+     */
+    @Transactional
+    public Ticket closeByCustomer(CurrentActor actor, Long ticketId) {
+        Ticket ticket = findTicket(actor, ticketId);
+
+        // 显式再判一次，为的是给出一条客户看得懂的提示；
+        // changeStatus 里那次通用校验仍然保留，作为兜底
+        if (ticket.getStatus() != TicketStatus.RESOLVED) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_STATUS_TRANSITION,
+                    "只有已解决的工单可以由客户确认关闭"
+            );
+        }
+
+        changeStatus(ticket, actor, TicketStatus.CLOSED);
+
+        return ticketMapper.selectById(ticketId);
+    }
+
+    /**
+     * 客户申请重开（docs/06 §4 的 {@code reopen} 命令）：
+     * {@code RESOLVED} 或 {@code CLOSED} → {@code PROCESSING}。
+     *
+     * <p>这里<b>只负责状态与审计</b>。"必须填原因"那条约束由调用方
+     * {@code TicketCommentService.reopenByCustomerWithReason} 完成：
+     * 原因是作为一条客户公开回复留下来的，不是塞在工单字段里。</p>
+     */
+    @Transactional
+    public Ticket reopenByCustomer(CurrentActor actor, Long ticketId) {
+        Ticket ticket = findTicket(actor, ticketId);
+
+        if (ticket.getStatus() != TicketStatus.RESOLVED
+                && ticket.getStatus() != TicketStatus.CLOSED) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_STATUS_TRANSITION,
+                    "只有已解决或已关闭的工单可以申请重开"
+            );
+        }
+
+        changeStatus(ticket, actor, TicketStatus.PROCESSING);
 
         return ticketMapper.selectById(ticketId);
     }

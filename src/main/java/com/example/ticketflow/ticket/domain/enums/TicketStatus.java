@@ -34,7 +34,7 @@ public enum TicketStatus {
                             RESOLVED
                     ),
                     RESOLVED, EnumSet.of(CLOSED, PROCESSING),
-                    CLOSED, EnumSet.noneOf(TicketStatus.class)
+                    CLOSED, EnumSet.of(PROCESSING)
             );
 
     public boolean canTransitionTo(TicketStatus target) {

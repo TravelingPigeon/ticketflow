@@ -36,6 +36,11 @@ class TicketStatusTest {
         assertTrue(TicketStatus.RESOLVED.canTransitionTo(
                 TicketStatus.PROCESSING
         ));
+
+        // 已关闭的工单可以重开（F7-1 补上的那条边）
+        assertTrue(TicketStatus.CLOSED.canTransitionTo(
+                TicketStatus.PROCESSING
+        ));
     }
 
     @Test
@@ -47,7 +52,8 @@ class TicketStatusTest {
                 "WAITING_CUSTOMER->PROCESSING",
                 "WAITING_CUSTOMER->RESOLVED",
                 "RESOLVED->CLOSED",
-                "RESOLVED->PROCESSING"
+                "RESOLVED->PROCESSING",
+                "CLOSED->PROCESSING"
         );
 
         for (TicketStatus from : TicketStatus.values()) {

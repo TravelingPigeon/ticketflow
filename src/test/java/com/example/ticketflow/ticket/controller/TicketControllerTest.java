@@ -1089,10 +1089,12 @@ class TicketControllerTest {
     }
 
     @Test
-    void shouldRejectReopeningClosedTicket() throws Exception {
+    void shouldAllowReopeningClosedTicket() throws Exception {
         long ticketId = createTestTicket("FLOW-004", 1);
         setTicketStatusDirectly(ticketId, "CLOSED");
 
+        // F7-1 之前 CLOSED 是终态；设计稿的状态图里一直有 CLOSED --> IN_PROGRESS，
+        // 所以这条边是补上实现缺口，不是放宽规则
         mockMvc.perform(
                         patch("/api/v1/tickets/" + ticketId + "/status")
                                 .with(jwtFor("admin-one", 1, "ADMIN"))
@@ -1103,9 +1105,9 @@ class TicketControllerTest {
                                         }
                                         """)
                 )
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code")
-                        .value("INVALID_STATUS_TRANSITION"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status")
+                        .value("PROCESSING"));
     }
 
     private void changeStatusAsAdmin(

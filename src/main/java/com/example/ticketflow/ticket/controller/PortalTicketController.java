@@ -3,10 +3,12 @@ package com.example.ticketflow.ticket.controller;
 import com.example.ticketflow.auth.security.CurrentActor;
 import com.example.ticketflow.auth.security.CurrentActorService;
 import com.example.ticketflow.common.api.ApiResponse;
+import com.example.ticketflow.ticket.comment.service.TicketCommentService;
 import com.example.ticketflow.ticket.domain.Ticket;
 import com.example.ticketflow.ticket.domain.enums.TicketPriority;
 import com.example.ticketflow.ticket.domain.enums.TicketStatus;
 import com.example.ticketflow.ticket.dto.CreateTicketRequest;
+import com.example.ticketflow.ticket.dto.ReopenTicketRequest;
 import com.example.ticketflow.ticket.dto.TicketQuery;
 import com.example.ticketflow.ticket.service.TicketService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -26,13 +28,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class PortalTicketController {
 
     private final TicketService ticketService;
+    private final TicketCommentService ticketCommentService;
     private final CurrentActorService currentActorService;
 
     public PortalTicketController(
             TicketService ticketService,
+            TicketCommentService ticketCommentService,
             CurrentActorService currentActorService
     ) {
         this.ticketService = ticketService;
+        this.ticketCommentService = ticketCommentService;
         this.currentActorService = currentActorService;
     }
 
@@ -73,6 +78,33 @@ public class PortalTicketController {
 
         return ApiResponse.success(
                 ticketService.findTicket(actor, ticketId)
+        );
+    }
+
+    @PostMapping("/{ticketId}/close")
+    public ApiResponse<Ticket> closeMyTicket(
+            @PathVariable Long ticketId
+    ) {
+        CurrentActor actor = currentActorService.requireCustomer();
+
+        return ApiResponse.success(
+                ticketService.closeByCustomer(actor, ticketId)
+        );
+    }
+
+    @PostMapping("/{ticketId}/reopen")
+    public ApiResponse<Ticket> reopenMyTicket(
+            @PathVariable Long ticketId,
+            @Valid @RequestBody ReopenTicketRequest request
+    ) {
+        CurrentActor actor = currentActorService.requireCustomer();
+
+        return ApiResponse.success(
+                ticketCommentService.reopenByCustomerWithReason(
+                        actor,
+                        ticketId,
+                        request.reason()
+                )
         );
     }
 }
