@@ -325,12 +325,50 @@ public class TicketService {
             );
         }
 
-        recordOperation(
+        TicketOperation operation = recordOperation(
                 ticket,
                 actor,
                 TicketOperationType.STATUS_CHANGED,
                 previousStatus.name(),
                 target.name()
+        );
+
+        // 所有"进入已解决"的入口都会走到这里，通知只写一次，不用每个入口各写一遍
+        if (target == TicketStatus.RESOLVED) {
+            notifyCustomerAboutResolution(ticket, operation.getId());
+        }
+    }
+
+    /**
+     * 工单进入 RESOLVED 时通知提单客户（docs/06 §13：工单解决 → 创建客户）。
+     *
+     * <p>只通知"客户提的单"：成员替客户建的单没有 {@code customerId}，也就没有收件人。</p>
+     *
+     * <p><b>去重键里带的是操作记录的 ID</b>，不是工单 ID。原因和客户回复那次一样：
+     * 一张工单可以"解决 → 重开 → 再解决"，客户每一次都应该收到"已解决"。
+     * 如果键只带 {@code ticketId}，第二次通知会被唯一约束悄悄吞掉——
+     * 而这条操作记录本身就是"这一次解决"的标识，用它做键既稳定又不用新造 ID。</p>
+     */
+    private void notifyCustomerAboutResolution(
+            Ticket ticket,
+            Long operationId
+    ) {
+        if (ticket.getCustomerId() == null) {
+            return;
+        }
+
+        notificationService.notifyCustomer(
+                ticket.getTenantId(),
+                ticket.getCustomerId(),
+                NotificationType.TICKET_RESOLVED,
+                ticket,
+                "你提交的工单已解决",
+                "工单 " + ticket.getTicketNo()
+                        + "（" + ticket.getTitle() + "）已解决，请确认；"
+                        + "问题仍在的话，可以在门户申请重开。",
+                "ticket:resolved:" + ticket.getId()
+                        + ":operation:" + operationId
+                        + ":customer:" + ticket.getCustomerId()
         );
     }
 
@@ -623,7 +661,7 @@ public class TicketService {
         return assignTo(ticket, actor, actor.actorId(), TicketOperationType.CLAIMED);
     }
 
-    private void recordOperation(
+    private TicketOperation recordOperation(
             Ticket ticket,
             CurrentActor actor,
             TicketOperationType operationType,
@@ -640,6 +678,9 @@ public class TicketService {
         operation.setToValue(toValue);
 
         ticketOperationMapper.insert(operation);
+
+        // MyBatis-Plus 插入后会把自增主键回填到实体上，调用方可以直接用
+        return operation;
     }
 
     public List<TicketOperation> listOperations(

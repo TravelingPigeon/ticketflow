@@ -13,5 +13,8 @@ public enum NotificationType {
     SLA_BREACHED,
 
     /** 客户回复了你负责的工单 */
-    CUSTOMER_REPLIED
+    CUSTOMER_REPLIED,
+
+    /** 你提交的工单已被解决 */
+    TICKET_RESOLVED
 }

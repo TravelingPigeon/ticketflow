@@ -51,10 +51,60 @@ public class NotificationService {
             String content,
             String businessKey
     ) {
+        insertNotification(
+                ActorType.MEMBER,
+                tenantId,
+                memberId,
+                type,
+                ticket,
+                title,
+                content,
+                businessKey
+        );
+    }
+
+    /**
+     * 给一个客户发通知（工单解决、后续的客户侧提醒都走这里）。
+     *
+     * <p>和 {@code notifyMember} 只差收件人类型。收件人类型必须显式传，
+     * 不能靠"查一下 ID 属于哪张表"——同一个租户里成员表的 1 号和客户表的 1 号
+     * 是两个不同的人，猜不出来。</p>
+     */
+    public void notifyCustomer(
+            Long tenantId,
+            Long customerId,
+            NotificationType type,
+            Ticket ticket,
+            String title,
+            String content,
+            String businessKey
+    ) {
+        insertNotification(
+                ActorType.CUSTOMER,
+                tenantId,
+                customerId,
+                type,
+                ticket,
+                title,
+                content,
+                businessKey
+        );
+    }
+
+    private void insertNotification(
+            ActorType recipientType,
+            Long tenantId,
+            Long recipientId,
+            NotificationType type,
+            Ticket ticket,
+            String title,
+            String content,
+            String businessKey
+    ) {
         Notification notification = new Notification();
         notification.setTenantId(tenantId);
-        notification.setRecipientType(ActorType.MEMBER);
-        notification.setRecipientId(memberId);
+        notification.setRecipientType(recipientType);
+        notification.setRecipientId(recipientId);
         notification.setType(type);
         notification.setTicketId(ticket == null ? null : ticket.getId());
         notification.setBusinessKey(businessKey);
@@ -144,6 +194,9 @@ public class NotificationService {
                 new LambdaQueryWrapper<Notification>()
                         .eq(Notification::getId, notificationId)
                         .eq(Notification::getTenantId, actor.tenantId())
+                        // 收件人类型必须一起比：同租户里成员 1 号和客户 1 号是两个不同的人，
+                        // 少了这一条，客户就能把成员的通知标成已读（反之亦然）
+                        .eq(Notification::getRecipientType, actor.actorType())
                         .eq(Notification::getRecipientId, actor.actorId())
         );
 
