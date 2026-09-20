@@ -63,9 +63,11 @@ class RoleProvisioningTest {
     void shouldKnowEveryPermissionInDictionary() {
         // 权限字典是整个 RBAC 的地基：下面所有断言都基于它算出来的期望值。
         // 新增权限时这个数字要跟着改，改的时候正好会提醒你检查内置角色的默认授权。
-        assertEquals(12, allPermissionCodes().size());
+        // 当前 13 条 = V11 的 11 条 + V13 的 sla:manage + V17 的 audit:read。
+        assertEquals(13, allPermissionCodes().size());
         assertTrue(allPermissionCodes().contains("ticket:handle:any"));
         assertTrue(allPermissionCodes().contains("role:manage"));
+        assertTrue(allPermissionCodes().contains("audit:read"));
     }
 
     @Test

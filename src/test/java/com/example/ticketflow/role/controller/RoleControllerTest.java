@@ -95,7 +95,8 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].code").value("ADMIN"))
                 .andExpect(jsonPath("$.data[0].builtIn").value(true))
-                .andExpect(jsonPath("$.data[0].permissions.length()").value(11))
+                // 管理员 = 字典总数 - ticket:claim；字典在 V17 之后是 13 条
+                .andExpect(jsonPath("$.data[0].permissions.length()").value(12))
                 .andExpect(jsonPath("$.data[1].code").value("AGENT"))
                 .andExpect(jsonPath("$.data[1].permissions.length()").value(6));
     }
@@ -230,7 +231,8 @@ class RoleControllerTest {
                                 .with(memberToken("admin-one", 1L, "ADMIN"))
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(12))
+                // 13 = V11 的 11 条 + V13 的 sla:manage + V17 的 audit:read
+                .andExpect(jsonPath("$.data.length()").value(13))
                 .andExpect(jsonPath("$.data[?(@.code == 'ticket:handle:any')]")
                         .exists());
     }

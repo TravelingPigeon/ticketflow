@@ -33,6 +33,8 @@ public final class Permissions {
 
     public static final String TICKET_HANDLE_ANY = "ticket:handle:any";
 
+    public static final String AUDIT_READ = "audit:read";
+
     private Permissions() {
     }
 }

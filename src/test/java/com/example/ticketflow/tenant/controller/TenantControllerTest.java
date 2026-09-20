@@ -80,8 +80,9 @@ class TenantControllerTest {
                 2,
                 countRows("SELECT COUNT(*) FROM tf_role WHERE tenant_id = ?", tenantId)
         );
+        // 18 = 管理员 12（字典 13 条去掉 ticket:claim）+ 客服 6
         assertEquals(
-                17,
+                18,
                 countRows(
                         "SELECT COUNT(*) FROM tf_role_permission WHERE tenant_id = ?",
                         tenantId

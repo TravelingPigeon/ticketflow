@@ -95,8 +95,10 @@ class RoleManagementTest {
         RoleResponse agent = roleOf(roles, BuiltInRoles.AGENT);
 
         assertTrue(admin.builtIn());
-        assertEquals(11, admin.permissions().size());
+        // 字典 13 条，管理员缺 ticket:claim
+        assertEquals(12, admin.permissions().size());
         assertTrue(admin.permissions().contains("ticket:assign"));
+        assertTrue(admin.permissions().contains("audit:read"));
         assertFalse(admin.permissions().contains("ticket:claim"));
 
         assertEquals(6, agent.permissions().size());
@@ -255,7 +257,8 @@ class RoleManagementTest {
         assertTrue(permissions.contains("role:manage"));
         assertTrue(permissions.contains("ticket:claim"));
         // 管理员缺 ticket:claim、客服缺 ticket:handle:any，并集正好覆盖整个字典
-        assertEquals(12, permissions.size());
+        assertEquals(13, permissions.size());
+        assertTrue(permissions.contains("audit:read"));
     }
 
     @Test
