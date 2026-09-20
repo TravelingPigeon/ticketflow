@@ -6,6 +6,7 @@ import com.example.ticketflow.common.exception.BusinessException;
 import com.example.ticketflow.common.exception.ErrorCode;
 import com.example.ticketflow.sla.domain.enums.SlaStatus;
 import com.example.ticketflow.ticket.comment.domain.TicketComment;
+import com.example.ticketflow.ticket.comment.domain.enums.CommentType;
 import com.example.ticketflow.ticket.comment.dto.CreateCommentRequest;
 import com.example.ticketflow.ticket.comment.mapper.TicketCommentMapper;
 import com.example.ticketflow.ticket.domain.Ticket;
@@ -38,27 +39,40 @@ public class TicketCommentService {
     ) {
         Ticket ticket = findVisibleTicket(actor, ticketId);
 
+        requireCommentTypeAllowed(actor, request.commentType());
+
         TicketComment comment = new TicketComment();
         comment.setTenantId(actor.tenantId());
         comment.setTicketId(ticket.getId());
+        comment.setAuthorType(actor.actorType());
         comment.setAuthorId(actor.actorId());
+        comment.setCommentType(request.commentType());
         comment.setContent(request.content().trim());
 
         ticketCommentMapper.insert(comment);
 
-        recordFirstResponse(ticket, actor);
+        recordFirstResponse(ticket, actor, request.commentType());
 
         return ticketCommentMapper.selectById(comment.getId());
     }
 
     /**
-     * 记录首次响应：只认<b>企业成员</b>的第一条评论。
+     * 记录首次响应：只认<b>企业成员的公开回复</b>。
      *
-     * <p>当前评论入口只对成员开放，所以"是不是成员"这个判断现在恒为真；
-     * 等 F1 开放客户评论之后，它就会拦住"客户回复也算首次响应"这个错误。</p>
+     * <p>这正是 docs/06 §5 说的规则，也是 L2c 留下的那个衔接点：
+     * 在 F1 之前评论只有一种类型，所以"第一条成员评论"和"第一条成员公开回复"
+     * 是等价的；现在评论分了型，两个条件缺一不可——</p>
+     * <ul>
+     *   <li>客户的回复不是"响应"，那是客户在说话；</li>
+     *   <li>内部备注不对客户可见，客户根本没收到响应，自然不能算。</li>
+     * </ul>
      */
-    private void recordFirstResponse(Ticket ticket, CurrentActor actor) {
-        if (!actor.isMember()) {
+    private void recordFirstResponse(
+            Ticket ticket,
+            CurrentActor actor,
+            CommentType commentType
+    ) {
+        if (!actor.isMember() || commentType != CommentType.PUBLIC_REPLY) {
             return;
         }
 
@@ -76,6 +90,25 @@ public class TicketCommentService {
         // 并发下另一个请求可能先记上了：乐观锁会让这次更新影响 0 行，
         // 而"首次响应只记一次"正是我们要的结果，所以不报错、直接放过
         ticketMapper.updateById(ticket);
+    }
+
+    /**
+     * 客户只能发公开回复。
+     *
+     * <p>内部备注是"说给同事看的话"，客户能发就失去意义了。
+     * 这条规则放在 Service 而不是 Controller：F1-2 接客户评论入口时，
+     * 不需要在新入口里重复写一遍——写评论永远只有这一条路径。</p>
+     */
+    private void requireCommentTypeAllowed(
+            CurrentActor actor,
+            CommentType commentType
+    ) {
+        if (actor.isCustomer() && commentType != CommentType.PUBLIC_REPLY) {
+            throw new BusinessException(
+                    ErrorCode.FORBIDDEN,
+                    "客户只能发表公开回复"
+            );
+        }
     }
 
     public List<TicketComment> listComments(

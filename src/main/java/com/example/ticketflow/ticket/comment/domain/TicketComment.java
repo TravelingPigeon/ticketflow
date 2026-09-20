@@ -3,6 +3,8 @@ package com.example.ticketflow.ticket.comment.domain;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.example.ticketflow.auth.security.ActorType;
+import com.example.ticketflow.ticket.comment.domain.enums.CommentType;
 
 import java.time.LocalDateTime;
 
@@ -16,7 +18,13 @@ public class TicketComment {
 
     private Long ticketId;
 
+    /** 作者是 MEMBER（企业成员）还是 CUSTOMER（外部客户） */
+    private ActorType authorType;
+
     private Long authorId;
+
+    /** PUBLIC_REPLY（公开回复）/ INTERNAL_NOTE（内部备注） */
+    private CommentType commentType;
 
     private String content;
 
@@ -46,12 +54,28 @@ public class TicketComment {
         this.ticketId = ticketId;
     }
 
+    public ActorType getAuthorType() {
+        return authorType;
+    }
+
+    public void setAuthorType(ActorType authorType) {
+        this.authorType = authorType;
+    }
+
     public Long getAuthorId() {
         return authorId;
     }
 
     public void setAuthorId(Long authorId) {
         this.authorId = authorId;
+    }
+
+    public CommentType getCommentType() {
+        return commentType;
+    }
+
+    public void setCommentType(CommentType commentType) {
+        this.commentType = commentType;
     }
 
     public String getContent() {

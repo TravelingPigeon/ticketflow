@@ -67,7 +67,13 @@ CREATE TABLE IF NOT EXISTS tf_ticket_comment (
 
                                                  author_id BIGINT NOT NULL,
 
+    -- MEMBER / CUSTOMER，和 tf_notification.recipient_type 同一套取值（V16）
+    author_type VARCHAR(16) NOT NULL DEFAULT 'MEMBER',
+
                                                  content VARCHAR(5000) NOT NULL,
+
+    -- PUBLIC_REPLY / INTERNAL_NOTE（V16）
+    comment_type VARCHAR(16) NOT NULL DEFAULT 'PUBLIC_REPLY',
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -77,11 +83,7 @@ CREATE TABLE IF NOT EXISTS tf_ticket_comment (
 
     CONSTRAINT fk_comment_ticket
     FOREIGN KEY (ticket_id)
-    REFERENCES tf_ticket(id),
-
-    CONSTRAINT fk_comment_author
-    FOREIGN KEY (author_id)
-    REFERENCES tf_user(id)
+    REFERENCES tf_ticket(id)
     );
 
 CREATE TABLE IF NOT EXISTS tf_customer (
